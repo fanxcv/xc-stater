@@ -1,9 +1,14 @@
 package fun.fan.xc.starter.out;
 
+import com.alibaba.fastjson2.annotation.JSONField;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.google.common.collect.Maps;
 import fun.fan.xc.starter.enums.ReturnCode;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.http.HttpStatus;
+
+import java.util.Map;
 
 /**
  * @author fan
@@ -44,7 +49,13 @@ public class R<T> {
     @Schema(description = "返回信息")
     private String message;
     @Hidden
+    @JsonIgnore
+    @JSONField(serialize = false)
     private transient HttpStatus status = HttpStatus.OK;
+    @Hidden
+    @JsonIgnore
+    @JSONField(serialize = false)
+    private final transient Map<String, String> headers = Maps.newHashMap();
 
     private R() {
         code = ReturnCode.SUCCESS.code();
@@ -78,6 +89,18 @@ public class R<T> {
         return this;
     }
 
+    /**
+     * 添加header
+     *
+     * @param name  header名
+     * @param value 值
+     * @return 本对象
+     */
+    public R<T> header(String name, String value) {
+        this.headers.put(name, value);
+        return this;
+    }
+
     public T getBody() {
         return body;
     }
@@ -92,5 +115,9 @@ public class R<T> {
 
     public HttpStatus getStatus() {
         return status;
+    }
+
+    public Map<String, String> getHeaders() {
+        return headers;
     }
 }

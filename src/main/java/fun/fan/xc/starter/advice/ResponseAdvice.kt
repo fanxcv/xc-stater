@@ -7,6 +7,7 @@ import org.springframework.http.MediaType
 import org.springframework.http.converter.HttpMessageConverter
 import org.springframework.http.server.ServerHttpRequest
 import org.springframework.http.server.ServerHttpResponse
+import org.springframework.http.server.ServletServerHttpResponse
 import org.springframework.web.bind.annotation.ControllerAdvice
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice
 
@@ -34,6 +35,11 @@ class ResponseAdvice : ResponseBodyAdvice<Any> {
         if (body is R<*>) {
             if (body.status != HttpStatus.OK) {
                 response.setStatusCode(body.status)
+            }
+            if (body.headers.isNotEmpty() && response is ServletServerHttpResponse) {
+                body.headers.forEach { (k, v) ->
+                    response.servletResponse.addHeader(k, v)
+                }
             }
             return body
         }
