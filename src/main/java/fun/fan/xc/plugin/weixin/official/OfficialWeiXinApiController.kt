@@ -80,20 +80,24 @@ class OfficialWeiXinApiController(
      * 提供给客户端同步数据用的
      */
     @GetMapping("accessToken")
-    fun accessToken(): R<Void> {
-        return R.build<Void>()
-            .set("access_token", accessTokenManager.token())
-            .set("expires", accessTokenManager.expires())
+    fun accessToken(): Map<String, Any?> {
+        return mapOf(
+            "code" to 0,
+            "access_token" to accessTokenManager.token(),
+            "expires" to accessTokenManager.expires()
+        )
     }
 
     /**
      * 提供给客户端同步数据用的
      */
     @GetMapping("jsTicket")
-    fun jsTicket(): R<Void> {
-        return R.build<Void>()
-            .set("ticket", jsApiTicketManager.token())
-            .set("expires", jsApiTicketManager.expires())
+    fun jsTicket(): Map<String, Any?> {
+        return mapOf(
+            "code" to 0,
+            "ticket" to jsApiTicketManager.token(),
+            "expires" to jsApiTicketManager.expires()
+        )
     }
 
     override fun afterPropertiesSet() {

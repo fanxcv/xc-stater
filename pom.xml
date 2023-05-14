@@ -12,8 +12,9 @@
 
     <properties>
         <xc.version>1.0.0-SNAPSHOT</xc.version>
+        <spring.boot.version>3.0.6</spring.boot.version>
         <guava.version>31.1-jre</guava.version>
-        <fastjson2.version>2.0.25</fastjson2.version>
+        <fastjson2.version>2.0.31</fastjson2.version>
         <commons.lang3.version>3.12.0</commons.lang3.version>
         <hutool.version>5.8.15</hutool.version>
 
@@ -25,7 +26,7 @@
         <repository>
             <id>fan</id>
             <name>fan</name>
-            <url>http://47.101.57.16:8880/maven/private</url>
+            <url>https://maven.fan-x.fun/maven/private</url>
         </repository>
     </distributionManagement>
 
@@ -83,6 +84,12 @@
             <artifactId>jackson-module-kotlin</artifactId>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>io.swagger.core.v3</groupId>
+            <artifactId>swagger-annotations-jakarta</artifactId>
+            <version>2.2.8</version>
+            <scope>provided</scope>
+        </dependency>
 
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
@@ -114,7 +121,7 @@
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-starter-parent</artifactId>
-                <version>3.0.3</version>
+                <version>${spring.boot.version}</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>

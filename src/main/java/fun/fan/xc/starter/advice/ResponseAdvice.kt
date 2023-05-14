@@ -32,8 +32,8 @@ class ResponseAdvice : ResponseBodyAdvice<Any> {
         }
 
         if (body is R<*>) {
-            if (body.getStatus() != HttpStatus.OK) {
-                response.setStatusCode(body.getStatus())
+            if (body.status != HttpStatus.OK) {
+                response.setStatusCode(body.status)
             }
             return body
         }

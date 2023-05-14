@@ -24,7 +24,7 @@ class GlobalExceptionHandler {
     @ExceptionHandler(value = [XcRunException::class])
     fun xcRunExceptionHandler(e: XcRunException, request: HttpServletRequest): Any {
         log.error("${request.requestURI} - ${e.code}: ${e.message}", e)
-        return R.fail<Any>(e.code, e.message).setStatus(e.status)
+        return R.fail<Any>(e.code, e.message).status(e.status)
     }
 
     @Order(0)
@@ -38,14 +38,14 @@ class GlobalExceptionHandler {
     )
     fun notValidExceptionHandler(e: Exception, request: HttpServletRequest): Any {
         log.error("${request.requestURI} - 参数错误: ${e.message}", e)
-        val res = R.fail<Any>().setStatus(HttpStatus.BAD_REQUEST)
+        val res = R.fail<Any>().status(HttpStatus.BAD_REQUEST)
         when (e) {
             is HttpMessageNotReadableException -> {
-                res.setMsg("请求体不能为空")
+                res.message("请求体不能为空")
             }
 
             else -> {
-                res.setMsg(e.message)
+                res.message(e.message)
             }
         }
         return res

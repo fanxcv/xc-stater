@@ -45,10 +45,12 @@ class ProgramWeiXinApiController(
      * 提供给客户端同步数据用的
      */
     @GetMapping("accessToken")
-    fun accessToken(): R<Void> {
-        return R.build<Void>()
-            .set("access_token", accessTokenManager.token())
-            .set("expires", accessTokenManager.expires())
+    fun accessToken(): Map<String, Any?> {
+        return mapOf(
+            "code" to 0,
+            "access_token" to accessTokenManager.token(),
+            "expires" to accessTokenManager.expires()
+        )
     }
 
     override fun afterPropertiesSet() {
