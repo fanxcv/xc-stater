@@ -3,8 +3,6 @@ package `fun`.fan.xc.plugin.weixin
 import com.google.common.collect.Sets
 import `fun`.fan.xc.starter.enums.ReturnCode
 import `fun`.fan.xc.starter.exception.XcRunException
-import jakarta.servlet.http.HttpServletRequest
-import jakarta.servlet.http.HttpServletResponse
 import org.apache.commons.lang3.StringUtils
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -13,6 +11,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.web.servlet.HandlerInterceptor
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
+import javax.servlet.http.HttpServletRequest
+import javax.servlet.http.HttpServletResponse
 
 @ConditionalOnBean(WeixinServerEnable::class)
 class WeiXinInterceptor(private val config: WeiXinConfig) : HandlerInterceptor, WebMvcConfigurer, InitializingBean {

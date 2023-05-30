@@ -6,7 +6,6 @@ import `fun`.fan.xc.starter.converters.JsonObject2EntityConverterFactory
 import `fun`.fan.xc.starter.converters.String2EntityConverterFactory
 import `fun`.fan.xc.starter.converters.String2ListGenericConverter
 import `fun`.fan.xc.starter.interceptor.CoreInterceptor
-import jakarta.servlet.Servlet
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.AutoConfigureAfter
@@ -26,6 +25,7 @@ import org.springframework.web.servlet.DispatcherServlet
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter
+import javax.servlet.Servlet
 
 @Configuration
 @ComponentScan

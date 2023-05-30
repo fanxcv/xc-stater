@@ -5,8 +5,6 @@ import com.alibaba.fastjson2.JSONReader
 import `fun`.fan.xc.starter.event.EventImpl
 import `fun`.fan.xc.starter.event.EventInner
 import `fun`.fan.xc.starter.utils.Dict
-import jakarta.servlet.http.HttpServletRequest
-import jakarta.servlet.http.HttpServletResponse
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.core.ParameterizedTypeReference
@@ -15,6 +13,8 @@ import org.springframework.util.StringUtils
 import org.springframework.web.method.HandlerMethod
 import org.springframework.web.servlet.HandlerInterceptor
 import java.nio.charset.Charset
+import javax.servlet.http.HttpServletRequest
+import javax.servlet.http.HttpServletResponse
 
 /**
  * 核心拦截器, 主要处理请求参数

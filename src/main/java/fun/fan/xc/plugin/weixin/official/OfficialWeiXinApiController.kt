@@ -5,7 +5,6 @@ import `fun`.fan.xc.plugin.weixin.WeiXinDict
 import `fun`.fan.xc.plugin.weixin.WeixinServerEnable
 import `fun`.fan.xc.starter.exception.BussinessException
 import `fun`.fan.xc.starter.out.R
-import jakarta.validation.constraints.NotBlank
 import org.apache.commons.lang3.StringUtils
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -14,6 +13,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
+import javax.validation.constraints.NotBlank
 
 @RestController
 @ConditionalOnBean(WeixinServerEnable::class)

@@ -44,7 +44,7 @@ class XcScannerConfig : ImportBeanDefinitionRegistrar, ResourceLoaderAware, Bean
         var basePackages = attributes!!["basePackages"] as Array<String?>
         if (ArrayUtil.isEmpty(basePackages)) {
             // 如果没有指定需要扫描的包, 则默认启动类所在的包
-            basePackages = arrayOf((annotationMetadata as StandardAnnotationMetadata).introspectedClass.packageName)
+            // basePackages = arrayOf((annotationMetadata as StandardAnnotationMetadata).introspectedClass.packageName)
         }
         val matches = attributes["matches"] as Array<AnnotationAttributes>
         if (ArrayUtil.isEmpty(matches)) {

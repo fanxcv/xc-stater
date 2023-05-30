@@ -306,9 +306,9 @@ object NetUtils {
     fun addAuthInUrl(url: String, user: String, password: String): String {
         val u = URL(url)
         var s = u.protocol + "://" +
-                URLEncoder.encode(user, StandardCharsets.UTF_8) +
+                URLEncoder.encode(user, StandardCharsets.UTF_8.name()) +
                 ':' +
-                URLEncoder.encode(password, StandardCharsets.UTF_8) +
+                URLEncoder.encode(password, StandardCharsets.UTF_8.name()) +
                 "@" +
                 u.authority
         if (u.path != null) s += u.path
