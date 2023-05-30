@@ -4,6 +4,7 @@ object WeiXinDict {
     const val WX_BASE_PATH = "/xc/wx"
 
     private const val WX_API_HOST = "https://api.weixin.qq.com"
+    private const val WX_PAY_HOST = "https://api.mch.weixin.qq.com"
 
     /**
      * 获取ACCESS_TOKEN
@@ -61,4 +62,9 @@ object WeiXinDict {
      * 发送订阅消息
      */
     const val WX_API_MESSAGE_SUBSCRIBE = "$WX_API_HOST/cgi-bin/message/subscribe/send?access_token=%s"
+
+    /**
+     * 统一下单接口
+     */
+    const val WX_API_PAY_UNIFIED_ORDER = "$WX_PAY_HOST/pay/unifiedorder"
 }

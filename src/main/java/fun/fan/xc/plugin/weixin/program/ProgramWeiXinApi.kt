@@ -1,17 +1,19 @@
 package `fun`.fan.xc.plugin.weixin.program
 
 import com.alibaba.fastjson2.JSON
-import com.alibaba.fastjson2.JSONReader
 import `fun`.fan.xc.plugin.weixin.BaseWeiXinApi
 import `fun`.fan.xc.plugin.weixin.WeiXinConfig
 import `fun`.fan.xc.plugin.weixin.WeiXinDict
-import `fun`.fan.xc.plugin.weixin.entity.ProgramLoginResp
-import `fun`.fan.xc.plugin.weixin.entity.SubscribeMessage
-import `fun`.fan.xc.plugin.weixin.entity.WXBaseResp
+import `fun`.fan.xc.plugin.weixin.WeiXinUtils
+import `fun`.fan.xc.plugin.weixin.entity.*
 import `fun`.fan.xc.starter.exception.XcRunException
+import `fun`.fan.xc.starter.utils.BeanUtils
 import `fun`.fan.xc.starter.utils.NetUtils
+import jakarta.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletResponse
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Lazy
+import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
 import java.nio.charset.StandardCharsets
 
@@ -57,5 +59,56 @@ class ProgramWeiXinApi(
                     true
                 }
             }
+    }
+
+    /**
+     * 小程序统一下单接口
+     */
+    fun payUnifiedOrder(order: PayUnifiedOrder): PayUnifiedOrderResp {
+        if (order.sign.isNullOrBlank()) {
+            val sign = WeiXinUtils.sign(BeanUtils.beanToMap(order), config.miniProgram.signKey)
+            order.sign = sign
+        }
+        return NetUtils.build(WeiXinDict.WX_API_PAY_UNIFIED_ORDER)
+            .contentType(MediaType.APPLICATION_XML)
+            .body(order)
+            .doPost { it ->
+                val bytes = it.readBytes()
+                NetUtils.XMLMapper.readValue(bytes, PayUnifiedOrderResp::class.java)
+            }
+    }
+
+    /**
+     * 小程序统一下单接口, 直接返回能在前端调起支付的对象 m m
+     */
+    fun payOrderSimple(order: PayUnifiedOrder): PayOrder {
+        val resp: PayUnifiedOrderResp = payUnifiedOrder(order)
+
+        if (resp.returnCode != "SUCCESS" || resp.resultCode != "SUCCESS") {
+            throw XcRunException("微信支付统一下单失败: ${resp.returnMsg}")
+        }
+
+        val res = PayOrder()
+        res.appId = order.appid
+        res.packageValue = "prepay_id=${resp.prepayId}"
+        res.sign = WeiXinUtils.sign(BeanUtils.beanToMap(res), config.miniProgram.signKey)
+
+        return res
+    }
+
+    /**
+     * 小程序支付回调
+     */
+    fun payNotify(request: HttpServletRequest, response: HttpServletResponse, action: (PayNotifyResp) -> Boolean) {
+        request.inputStream.use {
+            val resp = NetUtils.XMLMapper.readValue(it.readBytes(), PayNotifyResp::class.java)
+            val res: Map<String, String> =
+                if (action(resp)) {
+                    mapOf("return_code" to "SUCCESS", "return_msg" to "OK")
+                } else {
+                    mapOf("return_code" to "FAIL", "return_msg" to "FAIL")
+                }
+            response.writer.write(NetUtils.XMLMapper.writeValueAsString(res))
+        }
     }
 }

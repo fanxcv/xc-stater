@@ -1,6 +1,7 @@
 package `fun`.fan.xc.starter.utils
 
 import com.alibaba.fastjson2.JSON
+import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import com.google.common.collect.Lists
 import com.google.common.collect.Maps
 import `fun`.fan.xc.starter.exception.XcToolsException
@@ -23,6 +24,10 @@ object NetUtils {
     private val log: Logger = LoggerFactory.getLogger(NetUtils::class.java)
     private const val PREFIX = "--"
     private const val LINE_END = "\r\n"
+
+    var XMLMapper: XmlMapper = lazy {
+        XmlMapper()
+    }.value
 
     data class Upload(val fileName: String, val `is`: InputStream) {
         var type: String = MediaType.APPLICATION_OCTET_STREAM_VALUE
@@ -95,6 +100,9 @@ object NetUtils {
          * 添加单个请求头
          */
         fun addHeader(k: String, v: String): Builder {
+            if ("Content-Type".equals(k, ignoreCase = true)) {
+                throw XcToolsException("Content-Type不能通过addHeader方法设置, 请使用contentType方法设置")
+            }
             this.headers[k] = v
             return this
         }
@@ -103,7 +111,18 @@ object NetUtils {
          * 添加多个参数
          */
         fun addHeaders(vs: Map<String, String>): Builder {
+            if (vs.containsKey("Content-Type")) {
+                throw XcToolsException("Content-Type不能通过addHeader方法设置, 请使用contentType方法设置")
+            }
             this.headers.putAll(vs)
+            return this
+        }
+
+        /**
+         * 设置请求方式
+         */
+        fun contentType(contentType: MediaType): Builder {
+            this.contentType = contentType
             return this
         }
 
@@ -237,6 +256,12 @@ object NetUtils {
                             dos.write("$LINE_END$PREFIX$boundary$PREFIX$LINE_END".toByteArray(StandardCharsets.UTF_8))
                             dos.flush()
                         }
+                    }
+
+                    MediaType.APPLICATION_XML -> {
+                        connection.setRequestProperty("Content-Type", MediaType.APPLICATION_ATOM_XML_VALUE)
+                        bytes = (body as? String)?.toByteArray() ?: XMLMapper.writeValueAsBytes(body)
+                        sendBody(connection, bytes)
                     }
 
                     else -> {

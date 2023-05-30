@@ -11,8 +11,8 @@ open class BaseWeiXinApi(
     private val accessTokenManager: TokenManager
 ) {
     protected val log: Logger = LoggerFactory.getLogger(this::class.java)
-    protected lateinit var appSecret: String
-    protected lateinit var appId: String
+    lateinit var appSecret: String
+    lateinit var appId: String
 
     /**
      * 获取微信AccessToken

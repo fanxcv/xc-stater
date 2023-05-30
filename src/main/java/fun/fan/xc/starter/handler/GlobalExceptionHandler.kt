@@ -15,6 +15,7 @@ import org.springframework.web.bind.MissingPathVariableException
 import org.springframework.web.bind.MissingServletRequestParameterException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
+import java.lang.IllegalArgumentException
 
 @RestControllerAdvice
 class GlobalExceptionHandler {
@@ -49,6 +50,13 @@ class GlobalExceptionHandler {
             }
         }
         return res
+    }
+
+    @Order(0)
+    @ExceptionHandler(value = [IllegalArgumentException::class])
+    fun illegalArgumentExceptionHandler(e: Exception, request: HttpServletRequest): Any {
+        log.error("${request.requestURI} - 业务异常: ${e.message}", e)
+        return R.fail<Any>(ReturnCode.SYSTEM_ERROR).message(e.message)
     }
 
     @Order(9)

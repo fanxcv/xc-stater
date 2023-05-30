@@ -86,6 +86,11 @@ public class WeiXinConfig {
          */
         private String appSecret = Dict.BLANK;
 
+        /**
+         * 签名秘钥
+         */
+        private String signKey = Dict.BLANK;
+
         public boolean isEnable() {
             return enable;
         }
@@ -96,6 +101,10 @@ public class WeiXinConfig {
 
         public String getAppSecret() {
             return appSecret;
+        }
+
+        public String getSignKey() {
+            return signKey;
         }
     }
 

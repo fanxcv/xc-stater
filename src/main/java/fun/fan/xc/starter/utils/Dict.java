@@ -16,6 +16,7 @@ public class Dict {
     public static final String UNKNOWN = "unknown";
 
     public static final String BLANK = "";
+    public static final String SEPARATOR = "/";
 
     /**
      * 参数注解默认值
