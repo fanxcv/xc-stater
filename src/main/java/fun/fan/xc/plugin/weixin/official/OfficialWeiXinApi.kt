@@ -183,4 +183,15 @@ class OfficialWeiXinApi(
                 }
             }
     }
+
+    /**
+     * 生成带参数的二维码
+     */
+    fun createQrCode(param: QrCodeCreate): QrCodeCreateResp {
+        val resp: QrCodeCreateResp = NetUtils.build(WeiXinDict.WX_CREATE_QR_CODE.format(accessTokenManager.token()))
+            .body(param)
+            .doPost(QrCodeCreateResp::class.java)
+        resp.wxUrl = WeiXinDict.WX_QR_CODE_SHOW.format(resp.ticket)
+        return resp
+    }
 }
