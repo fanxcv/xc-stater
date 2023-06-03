@@ -397,13 +397,31 @@ public class BeanUtils {
      * @throws Exception 异常信息
      */
     public static Map<String, Object> beanToMap(Object bean) throws Exception {
+        return beanToMap(bean, null);
+    }
+
+    /**
+     * 运单信息bean转map值
+     * 允许使用自定义方式获取key
+     *
+     * @param bean 运单明细信息bean
+     * @throws Exception 异常信息
+     */
+    public static Map<String, Object> beanToMap(Object bean,
+                                                Function<PropertyDescriptor, String> keyFunction) throws Exception {
         Map<String, Object> wrapper = new HashMap<>(16);
         if (bean == null) {
             return wrapper;
         }
         for (PropertyDescriptor pd : Introspector.getBeanInfo(bean.getClass()).getPropertyDescriptors()) {
+            String key;
+            if (Objects.nonNull(keyFunction)) {
+                key = keyFunction.apply(pd);
+            } else {
+                key = pd.getName();
+            }
             Object value = pd.getReadMethod().invoke(bean);
-            wrapper.put(pd.getName(), value);
+            wrapper.put(key, value);
         }
         return wrapper;
     }

@@ -1,6 +1,7 @@
 package `fun`.fan.xc.plugin.weixin.program
 
 import com.alibaba.fastjson2.JSON
+import com.fasterxml.jackson.annotation.JsonProperty
 import `fun`.fan.xc.plugin.weixin.BaseWeiXinApi
 import `fun`.fan.xc.plugin.weixin.WeiXinConfig
 import `fun`.fan.xc.plugin.weixin.WeiXinDict
@@ -66,7 +67,12 @@ class ProgramWeiXinApi(
      */
     fun payUnifiedOrder(order: PayUnifiedOrder): PayUnifiedOrderResp {
         if (order.sign.isNullOrBlank()) {
-            val sign = WeiXinUtils.sign(BeanUtils.beanToMap(order), config.miniProgram.signKey)
+            val map = BeanUtils.beanToMap(order) {
+                val method = it.readMethod
+                val property = method.getAnnotation(JsonProperty::class.java)
+                property.value
+            }
+            val sign = WeiXinUtils.sign(map, config.miniProgram.signKey)
             order.sign = sign
         }
         return NetUtils.build(WeiXinDict.WX_API_PAY_UNIFIED_ORDER)
@@ -91,7 +97,12 @@ class ProgramWeiXinApi(
         val res = PayOrder()
         res.appId = order.appid
         res.packageValue = "prepay_id=${resp.prepayId}"
-        res.sign = WeiXinUtils.sign(BeanUtils.beanToMap(res), config.miniProgram.signKey)
+        val map = BeanUtils.beanToMap(res) {
+            val method = it.readMethod
+            val property = method.getAnnotation(JsonProperty::class.java)
+            property.value
+        }
+        res.sign = WeiXinUtils.sign(map, config.miniProgram.signKey)
 
         return res
     }
