@@ -1,6 +1,8 @@
 package `fun`.fan.xc.plugin.weixin.program
 
+import cn.hutool.core.util.StrUtil
 import com.alibaba.fastjson2.JSON
+import com.fasterxml.jackson.annotation.JsonProperty
 import `fun`.fan.xc.plugin.weixin.BaseWeiXinApi
 import `fun`.fan.xc.plugin.weixin.WeiXinConfig
 import `fun`.fan.xc.plugin.weixin.WeiXinDict
@@ -13,9 +15,17 @@ import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Lazy
+import org.springframework.core.io.DefaultResourceLoader
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
+import org.springframework.util.Assert
 import java.nio.charset.StandardCharsets
+import java.security.KeyStore
+import javax.net.ssl.HttpsURLConnection
+import javax.net.ssl.KeyManagerFactory
+import javax.net.ssl.SSLContext
+import javax.net.ssl.SSLSocketFactory
+
 
 @Lazy
 @Component
@@ -29,6 +39,23 @@ class ProgramWeiXinApi(
     private val config: WeiXinConfig,
     private val accessTokenManager: ProgramAccessTokenManager
 ) : BaseWeiXinApi(config, accessTokenManager) {
+    private val wxSslSocketFactory: SSLSocketFactory by lazy {
+        val keyStore = KeyStore.getInstance("PKCS12")
+        Assert.isTrue(StrUtil.isNotBlank(config.miniProgram.pay.apiCertPath))
+        DefaultResourceLoader().getResource(config.miniProgram.pay.apiCertPath)
+            .inputStream.use {
+                keyStore.load(it, config.miniProgram.pay.mchId.toCharArray())
+            }
+        // 初始化KeyManagerFactory
+        val kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm())
+        kmf.init(keyStore, config.miniProgram.pay.mchId.toCharArray())
+
+        // 初始化SSLContext
+        val sslContext = SSLContext.getInstance("TLSv1.2")
+        sslContext.init(kmf.keyManagers, null, null)
+        sslContext.socketFactory
+    }
+
     init {
         appId = config.miniProgram.appId
         appSecret = config.miniProgram.appSecret
@@ -65,10 +92,7 @@ class ProgramWeiXinApi(
      * 小程序统一下单接口
      */
     fun payUnifiedOrder(order: PayUnifiedOrder): PayUnifiedOrderResp {
-        if (order.sign.isNullOrBlank()) {
-            val sign = WeiXinUtils.sign(BeanUtils.beanToMap(order), config.miniProgram.signKey)
-            order.sign = sign
-        }
+        WeiXinUtils.sign(order, config.miniProgram.pay.apiV2Key)
         return NetUtils.build(WeiXinDict.WX_API_PAY_UNIFIED_ORDER)
             .contentType(MediaType.APPLICATION_XML)
             .body(order)
@@ -84,14 +108,22 @@ class ProgramWeiXinApi(
     fun payOrderSimple(order: PayUnifiedOrder): PayOrder {
         val resp: PayUnifiedOrderResp = payUnifiedOrder(order)
 
-        if (resp.returnCode != "SUCCESS" || resp.resultCode != "SUCCESS") {
+        if (resp.returnCode != WeiXinDict.WX_SUCCESS) {
             throw XcRunException("微信支付统一下单失败: ${resp.returnMsg}")
+        }
+
+        if (resp.resultCode != WeiXinDict.WX_SUCCESS) {
+            throw XcRunException("微信支付统一下单失败: ${resp.errCode} ${resp.errCodeDes}")
         }
 
         val res = PayOrder()
         res.appId = order.appid
         res.packageValue = "prepay_id=${resp.prepayId}"
-        res.sign = WeiXinUtils.sign(BeanUtils.beanToMap(res), config.miniProgram.signKey)
+        val map = BeanUtils.beanToMap(res) {
+            val property = it.getAnnotation(JsonProperty::class.java)
+            property?.value ?: it.name
+        }
+        res.paySign = WeiXinUtils.sign(map, config.miniProgram.pay.apiV2Key)
 
         return res
     }
@@ -102,13 +134,52 @@ class ProgramWeiXinApi(
     fun payNotify(request: HttpServletRequest, response: HttpServletResponse, action: (PayNotifyResp) -> Boolean) {
         request.inputStream.use {
             val resp = NetUtils.XMLMapper.readValue(it.readBytes(), PayNotifyResp::class.java)
-            val res: Map<String, String> =
-                if (action(resp)) {
-                    mapOf("return_code" to "SUCCESS", "return_msg" to "OK")
-                } else {
-                    mapOf("return_code" to "FAIL", "return_msg" to "FAIL")
-                }
-            response.writer.write(NetUtils.XMLMapper.writeValueAsString(res))
+            doNotify(action(resp), response)
         }
+    }
+
+    /**
+     * 退款接口
+     */
+    fun payRefund(fund: PayRefund): PayRefundResp {
+        WeiXinUtils.sign(fund, config.miniProgram.pay.apiV2Key)
+        return NetUtils.build(WeiXinDict.WX_API_PAY_REFUND)
+            .contentType(MediaType.APPLICATION_XML)
+            .body(fund)
+            .beforeRequest {
+                if (it.url.protocol != "https") {
+                    throw XcRunException("微信退款接口必须使用 https 协议")
+                }
+                (it as HttpsURLConnection).sslSocketFactory = wxSslSocketFactory
+            }
+            .doPost { it ->
+                val bytes = it.readBytes()
+                NetUtils.XMLMapper.readValue(bytes, PayRefundResp::class.java)
+            }
+    }
+
+    /**
+     * 小程序退款回调
+     */
+    fun payRefundNotify(
+        request: HttpServletRequest,
+        response: HttpServletResponse,
+        action: (PayRefundNotifyResp) -> Boolean
+    ) {
+        request.inputStream.use {
+            val resp = NetUtils.XMLMapper.readValue(it.readBytes(), PayRefundNotifyResp::class.java)
+            resp.refundInfo = WeiXinUtils.decodeRefundInfo(resp.reqInfo!!, config.miniProgram.pay.apiV2Key)
+            doNotify(action(resp), response)
+        }
+    }
+
+    private fun doNotify(exec: Boolean, response: HttpServletResponse) {
+        val res: Map<String, String> =
+            if (exec) {
+                mapOf("return_code" to "SUCCESS", "return_msg" to "OK")
+            } else {
+                mapOf("return_code" to "FAIL", "return_msg" to "FAIL")
+            }
+        response.writer.write(NetUtils.XMLMapper.writeValueAsString(res))
     }
 }

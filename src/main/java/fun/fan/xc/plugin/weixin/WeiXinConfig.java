@@ -87,9 +87,9 @@ public class WeiXinConfig {
         private String appSecret = Dict.BLANK;
 
         /**
-         * 签名秘钥
+         * 小程序支付相关
          */
-        private String signKey = Dict.BLANK;
+        private Pay pay = new Pay();
 
         public boolean isEnable() {
             return enable;
@@ -103,8 +103,8 @@ public class WeiXinConfig {
             return appSecret;
         }
 
-        public String getSignKey() {
-            return signKey;
+        public Pay getPay() {
+            return pay;
         }
     }
 
@@ -189,6 +189,42 @@ public class WeiXinConfig {
 
         public Auth getAuth() {
             return auth;
+        }
+    }
+
+    @Data
+    public static class Pay {
+        /**
+         * 微信支付API秘钥地址, 使用spring加载
+         */
+        private String apiCertPath;
+        /**
+         * 微信支付V2Key
+         */
+        private String apiV2Key;
+        /**
+         * 微信支付V3Key
+         */
+        private String apiV3Key;
+        /**
+         * 商户id
+         */
+        private String mchId;
+
+        public String getApiCertPath() {
+            return apiCertPath;
+        }
+
+        public String getApiV2Key() {
+            return apiV2Key;
+        }
+
+        public String getApiV3Key() {
+            return apiV3Key;
+        }
+
+        public String getMchId() {
+            return mchId;
         }
     }
 
