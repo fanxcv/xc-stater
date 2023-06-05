@@ -1,6 +1,7 @@
 package `fun`.fan.xc.plugin.weixin.entity
 
 import com.alibaba.fastjson2.annotation.JSONField
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
 
 /**
@@ -8,6 +9,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
  * See https://pay.weixin.qq.com/wiki/doc/api/wxa/wxa_api.php?chapter=9_4
  * @author fan
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 open class PayRefundResp : PayBaseResp() {
     /**
      * 微信支付订单号

@@ -195,7 +195,19 @@ public class WeiXinConfig {
     @Data
     public static class Pay {
         /**
-         * 微信支付API秘钥地址, 使用spring加载
+         * 微信支付平台证书路径 {@link <a href="https://github.com/wechatpay-apiv3/CertificateDownloader"></a>}
+         */
+        private String wechatPayCertPath;
+        /**
+         * 商户证书序列号
+         */
+        private String apiKeySerialNo;
+        /**
+         * 商户API私钥路径
+         */
+        private String apiKeyPath;
+        /**
+         * 微信支付API秘钥地址
          */
         private String apiCertPath;
         /**
@@ -210,6 +222,18 @@ public class WeiXinConfig {
          * 商户id
          */
         private String mchId;
+
+        public String getWechatPayCertPath() {
+            return wechatPayCertPath;
+        }
+
+        public String getApiKeySerialNo() {
+            return apiKeySerialNo;
+        }
+
+        public String getApiKeyPath() {
+            return apiKeyPath;
+        }
 
         public String getApiCertPath() {
             return apiCertPath;

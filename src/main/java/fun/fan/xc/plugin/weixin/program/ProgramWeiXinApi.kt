@@ -41,7 +41,7 @@ class ProgramWeiXinApi(
 ) : BaseWeiXinApi(config, accessTokenManager) {
     private val wxSslSocketFactory: SSLSocketFactory by lazy {
         val keyStore = KeyStore.getInstance("PKCS12")
-        Assert.isTrue(StrUtil.isNotBlank(config.miniProgram.pay.apiCertPath))
+        Assert.isTrue(StrUtil.isNotBlank(config.miniProgram.pay.apiCertPath), "微信支付证书路径不能为空")
         DefaultResourceLoader().getResource(config.miniProgram.pay.apiCertPath)
             .inputStream.use {
                 keyStore.load(it, config.miniProgram.pay.mchId.toCharArray())
@@ -57,6 +57,7 @@ class ProgramWeiXinApi(
     }
 
     init {
+        pay = config.miniProgram.pay
         appId = config.miniProgram.appId
         appSecret = config.miniProgram.appSecret
     }
