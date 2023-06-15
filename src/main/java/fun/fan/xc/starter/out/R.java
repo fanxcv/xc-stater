@@ -56,6 +56,10 @@ public class R<T> {
     @JsonIgnore
     @JSONField(serialize = false)
     private final transient Map<String, String> headers = Maps.newHashMap();
+    @Hidden
+    @JsonIgnore
+    @JSONField(serialize = false)
+    private final transient Map<String, Object> extendData = Maps.newHashMap();
 
     private R() {
         code = ReturnCode.SUCCESS.code();
@@ -101,6 +105,17 @@ public class R<T> {
         return this;
     }
 
+    /**
+     * 添加与code平级的数据, 无法覆盖code,body,message
+     *
+     * @param key   返回key
+     * @param value 返回值
+     */
+    public R<T> set(String key, Object value) {
+        this.extendData.put(key, value);
+        return this;
+    }
+
     public T getBody() {
         return body;
     }
@@ -119,5 +134,9 @@ public class R<T> {
 
     public Map<String, String> getHeaders() {
         return headers;
+    }
+
+    public Map<String, Object> getExtendData() {
+        return extendData;
     }
 }

@@ -221,6 +221,27 @@ public class MinioUtils implements InitializingBean {
     }
 
     /**
+     * 通过流上传文件
+     *
+     * @param bucketName  存储桶
+     * @param objectName  文件对象
+     * @param contentType 文件类型
+     * @param inputStream 文件流
+     */
+    public static ObjectWriteResponse uploadFile(String bucketName, String objectName, String contentType, InputStream inputStream) {
+        try {
+            return client.putObject(
+                    PutObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(objectName)
+                            .stream(inputStream, inputStream.available(), -1)
+                            .build());
+        } catch (Exception e) {
+            throw new XcRunException("minio异常", e);
+        }
+    }
+
+    /**
      * 创建文件夹或目录
      *
      * @param bucketName 存储桶
