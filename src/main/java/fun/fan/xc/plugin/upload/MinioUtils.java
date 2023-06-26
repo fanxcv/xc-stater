@@ -234,6 +234,7 @@ public class MinioUtils implements InitializingBean {
                     PutObjectArgs.builder()
                             .bucket(bucketName)
                             .object(objectName)
+                            .contentType(contentType)
                             .stream(inputStream, inputStream.available(), -1)
                             .build());
         } catch (Exception e) {
