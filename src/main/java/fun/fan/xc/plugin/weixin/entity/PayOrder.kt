@@ -41,5 +41,5 @@ open class PayOrder {
     /**
      * 签名
      */
-    var sign: String? = null
+    var paySign: String? = null
 }

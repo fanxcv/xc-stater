@@ -2,6 +2,7 @@ package fun.fan.xc.starter.utils;
 
 import com.google.common.base.CaseFormat;
 import com.google.common.collect.Lists;
+import fun.fan.xc.starter.exception.XcRunException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.springframework.cglib.beans.BeanCopier;
@@ -391,38 +392,43 @@ public class BeanUtils {
     }
 
     /**
-     * 运单信息bean转map值
+     * bean转map值
      *
      * @param bean 运单明细信息bean
-     * @throws Exception 异常信息
      */
-    public static Map<String, Object> beanToMap(Object bean) throws Exception {
+    public static Map<String, Object> beanToMap(Object bean) {
         return beanToMap(bean, null);
     }
 
     /**
-     * 运单信息bean转map值
+     * bean转map值
      * 允许使用自定义方式获取key
      *
      * @param bean 运单明细信息bean
-     * @throws Exception 异常信息
      */
     public static Map<String, Object> beanToMap(Object bean,
-                                                Function<PropertyDescriptor, String> keyFunction) throws Exception {
+                                                Function<Field, String> keyFunction) {
         Map<String, Object> wrapper = new HashMap<>(16);
         if (bean == null) {
             return wrapper;
         }
-        for (PropertyDescriptor pd : Introspector.getBeanInfo(bean.getClass()).getPropertyDescriptors()) {
+        List<Field> fields = getAllFields(bean.getClass(), true);
+        fields.forEach(field -> {
             String key;
             if (Objects.nonNull(keyFunction)) {
-                key = keyFunction.apply(pd);
+                key = keyFunction.apply(field);
             } else {
-                key = pd.getName();
+                key = field.getName();
             }
-            Object value = pd.getReadMethod().invoke(bean);
+            field.setAccessible(true);
+            Object value;
+            try {
+                value = field.get(bean);
+            } catch (IllegalAccessException e) {
+                throw new XcRunException(e);
+            }
             wrapper.put(key, value);
-        }
+        });
         return wrapper;
     }
 }

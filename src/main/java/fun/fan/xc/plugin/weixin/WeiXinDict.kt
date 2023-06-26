@@ -2,6 +2,7 @@ package `fun`.fan.xc.plugin.weixin
 
 object WeiXinDict {
     const val WX_BASE_PATH = "/xc/wx"
+    const val WX_SUCCESS = "SUCCESS"
 
     private const val WX_HOST = "https://mp.weixin.qq.com"
     private const val WX_API_HOST = "https://api.weixin.qq.com"
@@ -68,6 +69,11 @@ object WeiXinDict {
      * 统一下单接口
      */
     const val WX_API_PAY_UNIFIED_ORDER = "$WX_PAY_HOST/pay/unifiedorder"
+
+    /**
+     * 申请退款
+     */
+    const val WX_API_PAY_REFUND = "$WX_PAY_HOST/secapi/pay/refund"
 
     /**
      * 公众号二维码创建

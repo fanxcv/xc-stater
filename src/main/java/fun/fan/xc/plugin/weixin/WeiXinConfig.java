@@ -87,9 +87,9 @@ public class WeiXinConfig {
         private String appSecret = Dict.BLANK;
 
         /**
-         * 签名秘钥
+         * 小程序支付相关
          */
-        private String signKey = Dict.BLANK;
+        private Pay pay = new Pay();
 
         public boolean isEnable() {
             return enable;
@@ -103,8 +103,8 @@ public class WeiXinConfig {
             return appSecret;
         }
 
-        public String getSignKey() {
-            return signKey;
+        public Pay getPay() {
+            return pay;
         }
     }
 
@@ -189,6 +189,66 @@ public class WeiXinConfig {
 
         public Auth getAuth() {
             return auth;
+        }
+    }
+
+    @Data
+    public static class Pay {
+        /**
+         * 微信支付平台证书路径 {@link <a href="https://github.com/wechatpay-apiv3/CertificateDownloader"></a>}
+         */
+        private String wechatPayCertPath;
+        /**
+         * 商户证书序列号
+         */
+        private String apiKeySerialNo;
+        /**
+         * 商户API私钥路径
+         */
+        private String apiKeyPath;
+        /**
+         * 微信支付API秘钥地址
+         */
+        private String apiCertPath;
+        /**
+         * 微信支付V2Key
+         */
+        private String apiV2Key;
+        /**
+         * 微信支付V3Key
+         */
+        private String apiV3Key;
+        /**
+         * 商户id
+         */
+        private String mchId;
+
+        public String getWechatPayCertPath() {
+            return wechatPayCertPath;
+        }
+
+        public String getApiKeySerialNo() {
+            return apiKeySerialNo;
+        }
+
+        public String getApiKeyPath() {
+            return apiKeyPath;
+        }
+
+        public String getApiCertPath() {
+            return apiCertPath;
+        }
+
+        public String getApiV2Key() {
+            return apiV2Key;
+        }
+
+        public String getApiV3Key() {
+            return apiV3Key;
+        }
+
+        public String getMchId() {
+            return mchId;
         }
     }
 

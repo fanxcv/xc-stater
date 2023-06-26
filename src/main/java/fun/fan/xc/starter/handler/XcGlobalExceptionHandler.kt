@@ -17,8 +17,8 @@ import javax.servlet.http.HttpServletRequest
 import javax.validation.ConstraintViolationException
 
 @RestControllerAdvice
-class GlobalExceptionHandler {
-    private val log: Logger = LoggerFactory.getLogger(GlobalExceptionHandler::class.java)
+class XcGlobalExceptionHandler {
+    private val log: Logger = LoggerFactory.getLogger(XcGlobalExceptionHandler::class.java)
 
     @Order(0)
     @ExceptionHandler(value = [XcRunException::class])

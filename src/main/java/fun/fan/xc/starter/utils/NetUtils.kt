@@ -25,9 +25,9 @@ object NetUtils {
     private const val PREFIX = "--"
     private const val LINE_END = "\r\n"
 
-    var XMLMapper: XmlMapper = lazy {
+    val XMLMapper: XmlMapper by lazy {
         XmlMapper()
-    }.value
+    }
 
     data class Upload(val fileName: String, val `is`: InputStream) {
         var type: String = MediaType.APPLICATION_OCTET_STREAM_VALUE
@@ -47,6 +47,8 @@ object NetUtils {
         private var contentType: MediaType = MediaType.APPLICATION_JSON
         private val headers: MutableMap<String, String> = Maps.newHashMap()
         private val params: MutableMap<String, Any?> = Maps.newHashMap()
+
+        private var beforeRequest: ((HttpURLConnection) -> Unit)? = null
 
         constructor()
         constructor(url: String) {
@@ -166,6 +168,11 @@ object NetUtils {
             return this
         }
 
+        fun beforeRequest(action: (connection: HttpURLConnection) -> Unit): Builder {
+            this.beforeRequest = action
+            return this
+        }
+
         fun <T> doGet(function: (uri: String, connection: HttpURLConnection) -> T): T {
             if (url.isBlank()) {
                 throw XcToolsException("请求url不能为空")
@@ -180,6 +187,7 @@ object NetUtils {
                     if (url.contains('?')) "$url&$query" else "$url?$query"
                 } else url
                 connection = initConnection(u, connectTimeout, readTimeout)
+                this.beforeRequest?.invoke(connection)
                 connection.requestMethod = "GET"
 
                 // 设置header
@@ -221,6 +229,7 @@ object NetUtils {
             var connection: HttpURLConnection? = null
             try {
                 connection = initPostConnection(url, connectTimeout, readTimeout)
+                this.beforeRequest?.invoke(connection)
                 // 设置header
                 headers.forEach { (k, v) -> connection.setRequestProperty(k, v) }
 

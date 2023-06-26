@@ -41,6 +41,12 @@ class ResponseAdvice : ResponseBodyAdvice<Any> {
                     response.servletResponse.addHeader(k, v)
                 }
             }
+            if (body.extendData.isNotEmpty()) {
+                body.extendData["code"] = body.code
+                body.extendData["body"] = body.body
+                body.extendData["message"] = body.message
+                return body.extendData
+            }
             return body
         }
 
