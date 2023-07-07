@@ -18,7 +18,6 @@ import org.springframework.context.annotation.ImportBeanDefinitionRegistrar
 import org.springframework.core.annotation.AnnotationAttributes
 import org.springframework.core.io.ResourceLoader
 import org.springframework.core.type.AnnotationMetadata
-import org.springframework.core.type.StandardAnnotationMetadata
 import org.springframework.core.type.classreading.MetadataReader
 import org.springframework.core.type.classreading.MetadataReaderFactory
 import java.lang.reflect.Field

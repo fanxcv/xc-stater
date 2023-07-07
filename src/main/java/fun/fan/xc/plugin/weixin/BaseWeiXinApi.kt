@@ -1,6 +1,5 @@
 package `fun`.fan.xc.plugin.weixin
 
-import com.wechat.pay.java.core.Config
 import com.wechat.pay.java.core.RSAAutoCertificateConfig
 import com.wechat.pay.java.core.RSAConfig
 import `fun`.fan.xc.plugin.weixin.entity.WXAccessTokenCommonResp
@@ -12,7 +11,6 @@ import org.springframework.core.io.DefaultResourceLoader
 import org.springframework.util.Assert
 
 open class BaseWeiXinApi(
-    private val config: WeiXinConfig,
     private val accessTokenManager: TokenManager
 ) {
     protected val log: Logger = LoggerFactory.getLogger(this::class.java)
@@ -20,26 +18,34 @@ open class BaseWeiXinApi(
     lateinit var appSecret: String
     lateinit var appId: String
 
-    val autoCertConfig: Config by lazy {
+    /**
+     * 返回对象为 {@link com.wechat.pay.java.core.RSAAutoCertificateConfig}
+     * 此处使用泛型是为了避免未引入微信支付时使用模块报错
+     */
+    fun <T> getAutoCertConfig(): T {
         Assert.notNull(pay, "微信支付配置不能为空")
         val resource = DefaultResourceLoader()
-        RSAAutoCertificateConfig.Builder()
+        return RSAAutoCertificateConfig.Builder()
             .privateKeyFromPath(resource.getResource(pay!!.apiKeyPath).file.path)
             .merchantSerialNumber(pay!!.apiKeySerialNo)
             .apiV3Key(pay!!.apiV3Key)
             .merchantId(pay!!.mchId)
-            .build()
+            .build() as T
     }
 
-    val wxPayConfig:RSAConfig by lazy {
+    /**
+     * 返回对象为 {@link com.wechat.pay.java.core.RSAConfig}
+     * 此处使用泛型是为了避免未引入微信支付时使用模块报错
+     */
+    fun <T> getWxPayConfig(): T {
         Assert.notNull(pay, "微信支付配置不能为空")
         val resource = DefaultResourceLoader()
-        RSAConfig.Builder()
+        return RSAConfig.Builder()
             .wechatPayCertificatesFromPath(resource.getResource(pay!!.wechatPayCertPath).file.path)
             .privateKeyFromPath(resource.getResource(pay!!.apiKeyPath).file.path)
             .merchantSerialNumber(pay!!.apiKeySerialNo)
             .merchantId(pay!!.mchId)
-            .build();
+            .build() as T
     }
 
     /**
@@ -62,9 +68,4 @@ open class BaseWeiXinApi(
         val resp: WXAccessTokenCommonResp = builder.doPost(WXAccessTokenCommonResp::class.java)
         return resp.accessToken ?: Dict.BLANK
     }
-
-    // fun sendUniformMessage() {
-    //     NetUtils.build(WeiXinDict.WX_API_MESSAGE_UNIFORM.format(accessTokenManager.token()))
-    //         .body()
-    // }
 }

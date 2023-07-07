@@ -25,7 +25,7 @@ class OfficialWeiXinApi(
     private val config: WeiXinConfig,
     private val accessTokenManager: OfficialAccessTokenManager,
     private val jsApiTicketManager: OfficialJsApiTicketManager
-) : BaseWeiXinApi(config, accessTokenManager) {
+) : BaseWeiXinApi(accessTokenManager) {
     init {
         appId = config.official.appId
         appSecret = config.official.appSecret
@@ -193,5 +193,14 @@ class OfficialWeiXinApi(
             .doPost(QrCodeCreateResp::class.java)
         resp.wxUrl = WeiXinDict.WX_QR_CODE_SHOW.format(resp.ticket)
         return resp
+    }
+
+    /**
+     * 创建微信公众号菜单
+     */
+    fun createMenu(menu: Menu):WXBaseResp {
+        return NetUtils.build(WeiXinDict.WX_MENU_CREATE.format(accessTokenManager.token()))
+            .body(menu)
+            .doPost(WXBaseResp::class.java)
     }
 }

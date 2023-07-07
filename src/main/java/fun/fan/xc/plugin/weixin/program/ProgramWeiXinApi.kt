@@ -38,7 +38,7 @@ import javax.net.ssl.SSLSocketFactory
 class ProgramWeiXinApi(
     private val config: WeiXinConfig,
     private val accessTokenManager: ProgramAccessTokenManager
-) : BaseWeiXinApi(config, accessTokenManager) {
+) : BaseWeiXinApi(accessTokenManager) {
     private val wxSslSocketFactory: SSLSocketFactory by lazy {
         val keyStore = KeyStore.getInstance("PKCS12")
         Assert.isTrue(StrUtil.isNotBlank(config.miniProgram.pay.apiCertPath), "微信支付证书路径不能为空")

@@ -84,4 +84,9 @@ object WeiXinDict {
      * 公众号二维码展示地址
      */
     const val WX_QR_CODE_SHOW = "$WX_HOST/cgi-bin/showqrcode?ticket=%s"
+
+    /**
+     * 公众号菜单创建
+     */
+    const val WX_MENU_CREATE = "$WX_API_HOST/cgi-bin/menu/create?access_token=%s"
 }

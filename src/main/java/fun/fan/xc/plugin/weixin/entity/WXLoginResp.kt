@@ -45,5 +45,5 @@ class WXLoginResp : WXBaseResp() {
     /**
      * 用户在开放平台的唯一标识符
      */
-    var unionid: Int? = null
+    var unionid: String? = null
 }
