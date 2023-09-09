@@ -23,20 +23,20 @@ import java.util.function.Supplier;
 @RequiredArgsConstructor
 @ConditionalOnBean(RedisTemplate.class)
 public class SpringRedisImpl implements Redis {
-    private final RedisTemplate<String, Object> template;
+    private final RedisTemplate<String, Object> xcRedisTemplate;
 
     private static final Long RELEASE_SUCCESS = 1L;
 
     @Override
     public boolean set(String key, Object value) {
-        template.opsForValue().set(key, value);
+        xcRedisTemplate.opsForValue().set(key, value);
         return true;
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public <T> T get(String key) {
-        return (T) template.opsForValue().get(key);
+        return (T) xcRedisTemplate.opsForValue().get(key);
     }
 
     @Override
@@ -63,109 +63,109 @@ public class SpringRedisImpl implements Redis {
 
     @Override
     public boolean exists(String key) {
-        final Boolean hasKey = template.hasKey(key);
+        final Boolean hasKey = xcRedisTemplate.hasKey(key);
         return hasKey != null && hasKey;
     }
 
     @Override
     public boolean expire(String key, int seconds) {
-        final Boolean expire = template.expire(key, seconds, TimeUnit.SECONDS);
+        final Boolean expire = xcRedisTemplate.expire(key, seconds, TimeUnit.SECONDS);
         return expire != null && expire;
     }
 
     @Override
     public boolean expire(String key, int time, TimeUnit timeUnit) {
-        final Boolean expire = template.expire(key, time, timeUnit);
+        final Boolean expire = xcRedisTemplate.expire(key, time, timeUnit);
         return expire != null && expire;
     }
 
     @Override
     public long ttl(String key) {
-        final Long expire = template.getExpire(key, TimeUnit.SECONDS);
+        final Long expire = xcRedisTemplate.getExpire(key, TimeUnit.SECONDS);
         return expire == null ? 0 : expire;
     }
 
     @Override
     public boolean setNx(String key, Object value) {
-        final Boolean res = template.opsForValue().setIfAbsent(key, value);
+        final Boolean res = xcRedisTemplate.opsForValue().setIfAbsent(key, value);
         return res != null && res;
     }
 
     @Override
     public boolean setEx(String key, Object value, int seconds) {
-        template.opsForValue().set(key, value, seconds, TimeUnit.SECONDS);
+        xcRedisTemplate.opsForValue().set(key, value, seconds, TimeUnit.SECONDS);
         return true;
     }
 
     @Override
     public boolean setEx(String key, Object value, int time, TimeUnit timeUnit) {
-        template.opsForValue().set(key, value, time, timeUnit);
+        xcRedisTemplate.opsForValue().set(key, value, time, timeUnit);
         return true;
     }
 
     @Override
     public boolean setExNx(String key, Object value, long millisecond) {
-        final Boolean res = template.opsForValue().setIfAbsent(key, value, millisecond, TimeUnit.MILLISECONDS);
+        final Boolean res = xcRedisTemplate.opsForValue().setIfAbsent(key, value, millisecond, TimeUnit.MILLISECONDS);
         return res != null && res;
     }
 
     @Override
     public boolean setExNx(String key, Object value, long time, TimeUnit timeUnit) {
-        final Boolean res = template.opsForValue().setIfAbsent(key, value, time, timeUnit);
+        final Boolean res = xcRedisTemplate.opsForValue().setIfAbsent(key, value, time, timeUnit);
         return res != null && res;
     }
 
     @Override
     public long decr(String key) {
-        final Long decrement = template.opsForValue().decrement(key);
+        final Long decrement = xcRedisTemplate.opsForValue().decrement(key);
         return decrement == null ? 0 : decrement;
     }
 
     @Override
     public long incr(String key) {
-        final Long increment = template.opsForValue().increment(key);
+        final Long increment = xcRedisTemplate.opsForValue().increment(key);
         return increment == null ? 0 : increment;
     }
 
     @Override
     public boolean hSet(String key, String field, Object value) {
-        template.opsForHash().put(key, field, value);
+        xcRedisTemplate.opsForHash().put(key, field, value);
         return true;
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public <T> T hGet(String key, String field) {
-        return (T) template.opsForHash().get(key, field);
+        return (T) xcRedisTemplate.opsForHash().get(key, field);
     }
 
     @Override
     public boolean hSetNx(String key, String field, Object value) {
-        return template.opsForHash().putIfAbsent(key, field, value);
+        return xcRedisTemplate.opsForHash().putIfAbsent(key, field, value);
     }
 
     @Override
     public boolean hmSet(String key, Map<String, Object> hash) {
-        template.opsForHash().putAll(key, hash);
+        xcRedisTemplate.opsForHash().putAll(key, hash);
         return true;
     }
 
     @Override
     public boolean hExists(String key, String field) {
-        return template.opsForHash().hasKey(key, field);
+        return xcRedisTemplate.opsForHash().hasKey(key, field);
     }
 
     @Override
     public long hDel(String key, String... field) {
         Object[] array = Arrays.stream(field).toArray();
-        return template.opsForHash().delete(key, array);
+        return xcRedisTemplate.opsForHash().delete(key, array);
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public <T> Map<String, T> hScan(String key, String pattern) {
         final Map<String, T> scanResult = Maps.newHashMap();
-        try (Cursor<Map.Entry<Object, Object>> cursor = template.opsForHash().scan(key, ScanOptions.scanOptions()
+        try (Cursor<Map.Entry<Object, Object>> cursor = xcRedisTemplate.opsForHash().scan(key, ScanOptions.scanOptions()
                 .count(Integer.MAX_VALUE)
                 .match(pattern)
                 .build())) {
@@ -186,62 +186,62 @@ public class SpringRedisImpl implements Redis {
 
     @Override
     public long rPush(String key, Object... string) {
-        final Long len = template.opsForList().rightPushAll(key, string);
+        final Long len = xcRedisTemplate.opsForList().rightPushAll(key, string);
         return len == null ? 0 : len;
     }
 
     @Override
     public long lPush(String key, Object... string) {
-        final Long len = template.opsForList().leftPushAll(key, string);
+        final Long len = xcRedisTemplate.opsForList().leftPushAll(key, string);
         return len == null ? 0 : len;
     }
 
     @Override
     public long lLen(String key) {
-        final Long size = template.opsForList().size(key);
+        final Long size = xcRedisTemplate.opsForList().size(key);
         return size == null ? 0 : size;
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public <T> List<T> lRange(String key, long start, long stop) {
-        return (List<T>) template.opsForList().range(key, start, stop);
+        return (List<T>) xcRedisTemplate.opsForList().range(key, start, stop);
     }
 
     @Override
     public boolean lTrim(String key, long start, long stop) {
-        template.opsForList().trim(key, start, stop);
+        xcRedisTemplate.opsForList().trim(key, start, stop);
         return true;
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public <T> T lPop(String key) {
-        return (T) template.opsForList().leftPop(key);
+        return (T) xcRedisTemplate.opsForList().leftPop(key);
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public <T> T rPop(String key) {
-        return (T) template.opsForList().rightPop(key);
+        return (T) xcRedisTemplate.opsForList().rightPop(key);
     }
 
     @Override
     public long del(String... key) {
-        final Long len = template.delete(Arrays.asList(key));
+        final Long len = xcRedisTemplate.delete(Arrays.asList(key));
         return len == null ? 0 : len;
     }
 
     @Override
     public long delByPattern(String pattern) {
         final Set<String> keys = scan(pattern);
-        final Long len = template.delete(keys);
+        final Long len = xcRedisTemplate.delete(keys);
         return len == null ? 0 : len;
     }
 
     @Override
     public Set<String> scan(String pattern) {
-        return template.execute((RedisCallback<Set<String>>) connection -> {
+        return xcRedisTemplate.execute((RedisCallback<Set<String>>) connection -> {
             Set<String> keysTmp = Sets.newHashSet();
             try (Cursor<byte[]> cursor = connection.keyCommands()
                     .scan(ScanOptions.scanOptions()
@@ -260,19 +260,19 @@ public class SpringRedisImpl implements Redis {
 
     @Override
     public <T> T exec(String script, Class<T> clazz, List<String> keys, Object... args) {
-        return template.execute(RedisScript.of(script, clazz), keys, args);
+        return xcRedisTemplate.execute(RedisScript.of(script, clazz), keys, args);
     }
 
     @Override
     public boolean tryGetDistributedLock(String lockKey, String requestId, long millisecond) {
-        final Boolean result = template.opsForValue().setIfAbsent(lockKey, requestId, millisecond, TimeUnit.MILLISECONDS);
+        final Boolean result = xcRedisTemplate.opsForValue().setIfAbsent(lockKey, requestId, millisecond, TimeUnit.MILLISECONDS);
         return result != null && result;
     }
 
     @Override
     public boolean releaseDistributedLock(String lockKey, String requestId) {
         String script = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end";
-        Long result = template.execute(RedisScript.of(script, Long.class), Collections.singletonList(lockKey), requestId);
+        Long result = xcRedisTemplate.execute(RedisScript.of(script, Long.class), Collections.singletonList(lockKey), requestId);
         return RELEASE_SUCCESS.equals(result);
     }
 }

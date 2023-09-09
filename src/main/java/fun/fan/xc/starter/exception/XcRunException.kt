@@ -17,6 +17,11 @@ open class XcRunException : RuntimeException {
         this.code = rc.code()
     }
 
+    constructor(rc: ReturnCode, msg: String?) : super(msg) {
+        this.status = rc.status()
+        this.code = rc.code()
+    }
+
     constructor(code: Int, msg: String?) : super(msg) {
         this.code = code
     }

@@ -20,7 +20,7 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 @Slf4j
 @ConditionalOnClass(RedisConnectionFactory.class)
 public class RedisConfigure {
-    @Bean
+    @Bean(name = "XcRedisTemplate")
     public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory factory) {
         log.info("===> redis: init redisTemplate");
         RedisTemplate<String, Object> template = new RedisTemplate<>();

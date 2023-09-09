@@ -12,9 +12,9 @@
 
     <properties>
         <xc.version>1.0.0-18-SNAPSHOT</xc.version>
-        <spring.boot.version>2.7.12</spring.boot.version>
+        <spring.boot.version>2.7.15</spring.boot.version>
         <guava.version>31.1-jre</guava.version>
-        <fastjson2.version>2.0.31</fastjson2.version>
+        <fastjson2.version>2.0.39</fastjson2.version>
         <commons.lang3.version>3.12.0</commons.lang3.version>
         <hutool.version>5.8.18</hutool.version>
 
@@ -104,6 +104,24 @@
             <groupId>com.github.wechatpay-apiv3</groupId>
             <artifactId>wechatpay-java</artifactId>
             <version>0.2.7</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mybatis</groupId>
+            <artifactId>mybatis</artifactId>
+            <version>3.5.13</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-annotation</artifactId>
+            <version>3.5.3.1</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-extension</artifactId>
+            <version>3.5.3.1</version>
             <scope>provided</scope>
         </dependency>
 
@@ -243,5 +261,22 @@
             </plugin>
         </plugins>
     </build>
+
+    <!--自定义仓库使用Maven-Go搭建, https://github.com/fanxcv/Maven-Go-->
+    <repositories>
+        <repository>
+            <id>fan</id>
+            <name>Maven-Go</name>
+            <url>https://maven.fan-x.fun/maven/public</url>
+        </repository>
+    </repositories>
+
+    <pluginRepositories>
+        <pluginRepository>
+            <id>fan</id>
+            <name>Maven-Go</name>
+            <url>https://maven.fan-x.fun/maven/public</url>
+        </pluginRepository>
+    </pluginRepositories>
 
 </project>

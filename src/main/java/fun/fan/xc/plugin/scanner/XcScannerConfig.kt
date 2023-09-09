@@ -32,6 +32,7 @@ class XcScannerConfig : ImportBeanDefinitionRegistrar, ResourceLoaderAware, Bean
     private var resourceLoader: ResourceLoader? = null
     private var beanFactory: BeanFactory? = null
 
+    @SuppressWarnings("unchecked")
     override fun registerBeanDefinitions(annotationMetadata: AnnotationMetadata, registry: BeanDefinitionRegistry) {
         val attributes = annotationMetadata.getAnnotationAttributes(
             XcScan::class.java.name
@@ -40,10 +41,11 @@ class XcScannerConfig : ImportBeanDefinitionRegistrar, ResourceLoaderAware, Bean
             log.warn("get XcScan attributes failed")
             return
         }
-        var basePackages = attributes!!["basePackages"] as Array<String?>
+        var basePackages = attributes!!["basePackages"] as Array<String>
         if (ArrayUtil.isEmpty(basePackages)) {
             // 如果没有指定需要扫描的包, 则默认启动类所在的包
             // basePackages = arrayOf((annotationMetadata as StandardAnnotationMetadata).introspectedClass.packageName)
+            basePackages = arrayOf(getBasePackage(annotationMetadata))
         }
         val matches = attributes["matches"] as Array<AnnotationAttributes>
         if (ArrayUtil.isEmpty(matches)) {
@@ -67,6 +69,19 @@ class XcScannerConfig : ImportBeanDefinitionRegistrar, ResourceLoaderAware, Bean
         val scanner = XcClassPathBeanDefinitionScanner(registry, cache)
         scanner.setResourceLoader(resourceLoader)
         scanner.scan(*basePackages)
+    }
+
+    private fun getBasePackage(annotationMetadata: AnnotationMetadata): String {
+        val className = annotationMetadata.className
+        try {
+            // 获取启动类的类对象
+            val clazz = Class.forName(className)
+            // 获取启动类所在的包名
+            val pkg = clazz.`package`
+            return pkg.name
+        } catch (e: ClassNotFoundException) {
+            throw RuntimeException("Failed to determine the base package for scanning.", e)
+        }
     }
 
     override fun setResourceLoader(resourceLoader: ResourceLoader) {
