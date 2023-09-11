@@ -47,6 +47,7 @@ object NetUtils {
         private var contentType: MediaType = MediaType.APPLICATION_JSON
         private val headers: MutableMap<String, String> = Maps.newHashMap()
         private val params: MutableMap<String, Any?> = Maps.newHashMap()
+        private val files: MutableList<Upload> = Lists.newLinkedList()
 
         private var beforeRequest: ((HttpURLConnection) -> Unit)? = null
 
@@ -67,6 +68,10 @@ object NetUtils {
          * 添加消息体
          */
         fun body(body: Any): Builder {
+            if (body is Upload) {
+                this.files.add(body)
+                return this
+            }
             this.body = body
             return this
         }
@@ -94,7 +99,7 @@ object NetUtils {
          */
         fun addFile(name: String, `is`: InputStream): Builder {
             this.contentType = MediaType.MULTIPART_FORM_DATA
-            this.body = Upload(name, `is`)
+            this.files.add(Upload(name, `is`))
             return this
         }
 
@@ -233,27 +238,27 @@ object NetUtils {
                 // 设置header
                 headers.forEach { (k, v) -> connection.setRequestProperty(k, v) }
 
-                val bytes: ByteArray?
+                val bytes: ByteArray
+                var data: String
                 when (contentType) {
                     MediaType.APPLICATION_FORM_URLENCODED -> {
-                        bytes = when (body) {
-                            is Map<*, *> -> buildQuery(body as Map<*, *>).toByteArray(StandardCharsets.UTF_8)
-                            is String -> (body as String).toByteArray(StandardCharsets.UTF_8)
-                            is Collection<*> -> throw XcToolsException("body is not supported")
-                            else -> buildQuery(BeanUtils.beanToMap(body)).toByteArray(StandardCharsets.UTF_8)
+                        data = when (body) {
+                            is Map<*, *> -> buildQuery(body as Map<*, *>)
+                            is String -> (body as String)
+                            is Collection<*> -> throw XcToolsException("body is collection, but not supported")
+                            else -> buildQuery(BeanUtils.beanToMap(body))
                         }
-                        connection.setRequestProperty(
-                            "Content-Type",
-                            "application/x-www-form-urlencoded; charset=utf-8"
-                        )
-                        sendBody(connection, bytes)
+                        if (params.isNotEmpty()) {
+                            data += "&${buildQuery(params)}"
+                        }
+                        connection.setRequestProperty("Content-Type", MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+                        sendBody(connection, data.toByteArray())
                     }
 
                     MediaType.MULTIPART_FORM_DATA -> {
-                        if (body !is Upload) {
-                            throw XcToolsException("upload body must be NetUtils.Upload")
+                        if (body != null) {
+                            log.warn("input by body filed will be ignored in FormData request, please use addFile method or addParam(s) method")
                         }
-                        val upload = body as Upload
                         val boundary = "----------" + System.currentTimeMillis()
                         connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
                         // 获得输出流
@@ -261,21 +266,27 @@ object NetUtils {
                             // 写参数
                             sendParams(params, boundary, dos)
                             // 写文件
-                            sendFile(Lists.newArrayList(upload), boundary, dos)
+                            sendFile(files, boundary, dos)
                             dos.write("$LINE_END$PREFIX$boundary$PREFIX$LINE_END".toByteArray(StandardCharsets.UTF_8))
                             dos.flush()
                         }
                     }
 
                     MediaType.APPLICATION_XML -> {
+                        if (params.isNotEmpty()) {
+                            log.warn("input by addParam(s) method will be ignored in XML request, please use body method")
+                        }
                         connection.setRequestProperty("Content-Type", MediaType.APPLICATION_ATOM_XML_VALUE)
                         bytes = (body as? String)?.toByteArray() ?: XMLMapper.writeValueAsBytes(body)
                         sendBody(connection, bytes)
                     }
 
                     else -> {
+                        if (params.isNotEmpty()) {
+                            log.warn("input by addParam(s) method will be ignored in Json request, please use body method")
+                        }
                         // 按照JSON处理
-                        connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                        connection.setRequestProperty("Content-Type", MediaType.APPLICATION_JSON_VALUE)
                         bytes = (body as? String)?.toByteArray() ?: JSON.toJSONBytes(body)
                         sendBody(connection, bytes)
                     }
@@ -326,21 +337,25 @@ object NetUtils {
         return s
     }
 
-    private fun <T> getResult(uri: String, connection: HttpURLConnection, type: Type): T {
-        if (connection.responseCode != HttpStatus.OK.value()) {
-            throw XcToolsException("Server returned HTTP response code: ${connection.responseCode} for URL: $uri")
-        }
-        return try {
-            if (type == String::class.java) {
-                BufferedReader(InputStreamReader(connection.inputStream)).use(BufferedReader::readText) as T
-            } else if (type is Class<*> && InputStream::class.java.isAssignableFrom(type)) {
-                connection.inputStream.use { it as T }
-            } else {
-                connection.inputStream.use { JSON.parseObject(it, type) }
+    private fun <T> getResult(uri: String, connection: HttpURLConnection?, type: Type): T {
+        if (connection?.responseCode == HttpStatus.OK.value()) {
+            return try {
+                if (type == String::class.java) {
+                    BufferedReader(InputStreamReader(connection.inputStream)).use(BufferedReader::readText) as T
+                } else if (type is Class<*> && InputStream::class.java.isAssignableFrom(type)) {
+                    connection.inputStream.use { it as T }
+                } else {
+                    connection.inputStream.use { JSON.parseObject(it, type) }
+                }
+            } catch (e: Exception) {
+                throw XcToolsException("failed to parse the returned data, uri: $uri \n\t ${e.message}")
             }
-        } catch (e: Exception) {
-            throw XcToolsException("failed to parse the returned data, uri: $uri \n\t ${e.message}")
         }
+        if (connection == null) {
+            throw XcToolsException("http connection failed, uri: $uri")
+        }
+        val err = BufferedReader(InputStreamReader(connection.errorStream)).use(BufferedReader::readText)
+        throw XcToolsException("Server Error, response code: ${connection.responseCode} message: $err, uri: $uri")
     }
 
     private fun sendBody(connection: HttpURLConnection, body: ByteArray?) {

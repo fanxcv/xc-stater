@@ -28,10 +28,6 @@ class ResponseAdvice : ResponseBodyAdvice<Any> {
         request: ServerHttpRequest,
         response: ServerHttpResponse
     ): Any? {
-        if (body == null) {
-            return R.success<Any>()
-        }
-
         if (body is R<*>) {
             if (body.status != HttpStatus.OK) {
                 response.setStatusCode(body.status)
