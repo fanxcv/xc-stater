@@ -226,7 +226,7 @@ object NetUtils {
             if (url.isBlank()) {
                 throw XcToolsException("请求url不能为空")
             }
-            if (body != null && body !is Upload) {
+            if (body != null) {
                 log.warn("params will be ignored, because body is not null")
             } else {
                 body = params
@@ -239,20 +239,16 @@ object NetUtils {
                 headers.forEach { (k, v) -> connection.setRequestProperty(k, v) }
 
                 val bytes: ByteArray
-                var data: String
                 when (contentType) {
                     MediaType.APPLICATION_FORM_URLENCODED -> {
-                        data = when (body) {
-                            is Map<*, *> -> buildQuery(body as Map<*, *>)
-                            is String -> (body as String)
+                        bytes = when (body) {
+                            is Map<*, *> -> buildQuery(body as Map<*, *>).toByteArray()
+                            is String -> (body as String).toByteArray()
                             is Collection<*> -> throw XcToolsException("body is collection, but not supported")
-                            else -> buildQuery(BeanUtils.beanToMap(body))
-                        }
-                        if (params.isNotEmpty()) {
-                            data += "&${buildQuery(params)}"
+                            else -> buildQuery(BeanUtils.beanToMap(body)).toByteArray()
                         }
                         connection.setRequestProperty("Content-Type", MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-                        sendBody(connection, data.toByteArray())
+                        sendBody(connection, bytes)
                     }
 
                     MediaType.MULTIPART_FORM_DATA -> {
