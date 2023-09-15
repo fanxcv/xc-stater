@@ -37,11 +37,17 @@ class XcGlobalExceptionHandler {
             MissingPathVariableException::class]
     )
     fun notValidExceptionHandler(e: Exception, request: HttpServletRequest): Any {
-        log.error("${request.requestURI} - 参数错误: ${e.message}", e)
+        log.error("${request.requestURI} - 参数错误", e)
         val res = R.fail<Any>().status(HttpStatus.BAD_REQUEST)
         when (e) {
             is HttpMessageNotReadableException -> {
                 res.message("请求体不能为空")
+            }
+
+            is MethodArgumentNotValidException -> {
+                val errors = e.bindingResult.fieldErrors
+                val messages = errors.map {"[${it.field}]: ${it.defaultMessage}"}
+                res.message(messages.joinToString("\n"))
             }
 
             else -> {

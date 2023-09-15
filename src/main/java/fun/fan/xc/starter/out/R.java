@@ -14,6 +14,30 @@ import java.util.Map;
  * @author fan
  */
 public class R<T> {
+    @Hidden
+    @JsonIgnore
+    @JSONField(serialize = false)
+    private final transient Map<String, String> headers = Maps.newHashMap();
+    @Hidden
+    @JsonIgnore
+    @JSONField(serialize = false)
+    private final transient Map<String, Object> extendData = Maps.newHashMap();
+    @Schema(description = "返回消息体")
+    private T body;
+    @Schema(description = "返回码, 0为成功")
+    private int code;
+    @Schema(description = "返回信息")
+    private String message;
+    @Hidden
+    @JsonIgnore
+    @JSONField(serialize = false)
+    private transient HttpStatus status = HttpStatus.OK;
+
+    private R() {
+        code = ReturnCode.SUCCESS.code();
+        message = ReturnCode.SUCCESS.message();
+    }
+
     public static <D> R<D> build() {
         return success();
     }
@@ -40,30 +64,6 @@ public class R<T> {
 
     public static <D> R<D> fail(String msg) {
         return new R<D>().returnCode(ReturnCode.FAIL).message(msg);
-    }
-
-    @Schema(description = "返回消息体")
-    private T body;
-    @Schema(description = "返回码, 0为成功")
-    private int code;
-    @Schema(description = "返回信息")
-    private String message;
-    @Hidden
-    @JsonIgnore
-    @JSONField(serialize = false)
-    private transient HttpStatus status = HttpStatus.OK;
-    @Hidden
-    @JsonIgnore
-    @JSONField(serialize = false)
-    private final transient Map<String, String> headers = Maps.newHashMap();
-    @Hidden
-    @JsonIgnore
-    @JSONField(serialize = false)
-    private final transient Map<String, Object> extendData = Maps.newHashMap();
-
-    private R() {
-        code = ReturnCode.SUCCESS.code();
-        message = ReturnCode.SUCCESS.message();
     }
 
     public R<T> returnCode(ReturnCode rc) {

@@ -1,15 +1,11 @@
 package fun.fan.xc.plugin.auth;
 
 import com.alibaba.fastjson2.annotation.JSONField;
-import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableId;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 
 /**
@@ -27,7 +23,7 @@ public class XcBaseUser {
 
     @TableField
     @Schema(description = "用户名")
-    private String username;
+    private String name;
 
     @TableField(exist = false)
     @Schema(description = "登录返回Token")
@@ -37,5 +33,5 @@ public class XcBaseUser {
     @JsonIgnore
     @TableField(exist = false)
     @JSONField(serialize = false)
-    private String client;
+    private String client = AuthConstant.DEFAULT_CLIENT;
 }

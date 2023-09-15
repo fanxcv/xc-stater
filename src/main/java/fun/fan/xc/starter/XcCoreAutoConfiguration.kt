@@ -34,7 +34,7 @@ import javax.servlet.Servlet
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @ConditionalOnClass(Servlet::class, DispatcherServlet::class, WebMvcConfigurer::class)
 @ConditionalOnProperty(prefix = "xc.core", value = ["enable"], havingValue = "true", matchIfMissing = true)
-class XcCoreAutoConfiguration : WebMvcRegistrations, WebMvcConfigurer, ApplicationContextAware {
+open class XcCoreAutoConfiguration : WebMvcRegistrations, WebMvcConfigurer, ApplicationContextAware {
     private val log: Logger = LoggerFactory.getLogger(XcCoreAutoConfiguration::class.java)
     private lateinit var applicationContext: ApplicationContext
     private lateinit var config: XcConfiguration.CoreConfig

@@ -351,7 +351,7 @@ object NetUtils {
             throw XcToolsException("http connection failed, uri: $uri")
         }
         val err = BufferedReader(InputStreamReader(connection.errorStream)).use(BufferedReader::readText)
-        throw XcToolsException("Server Error, response code: ${connection.responseCode} message: $err, uri: $uri")
+        throw XcToolsException("Server Error, response code: ${connection.responseCode}, uri: $uri, message: $err")
     }
 
     private fun sendBody(connection: HttpURLConnection, body: ByteArray?) {

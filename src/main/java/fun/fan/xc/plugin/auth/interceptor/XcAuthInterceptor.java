@@ -1,6 +1,7 @@
 package fun.fan.xc.plugin.auth.interceptor;
 
 import fun.fan.xc.plugin.auth.AuthConfigure;
+import fun.fan.xc.plugin.auth.AuthConstant;
 import fun.fan.xc.plugin.auth.XcBaseUser;
 
 import javax.servlet.http.HttpServletRequest;
@@ -16,7 +17,7 @@ public interface XcAuthInterceptor {
      * 返回客户端名称
      */
     default String client() {
-        return "default";
+        return AuthConstant.DEFAULT_CLIENT;
     }
 
     /**

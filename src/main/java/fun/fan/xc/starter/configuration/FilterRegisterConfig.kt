@@ -12,11 +12,11 @@ import org.springframework.context.annotation.Configuration
  * @author fan
  */
 @Configuration
-class FilterRegisterConfig {
+open class FilterRegisterConfig {
     private val log: Logger = LoggerFactory.getLogger(this::class.java)
 
     @Bean
-    fun filterRegistrationBean(): FilterRegistrationBean<*> {
+    open fun filterRegistrationBean(): FilterRegistrationBean<*> {
         log.info("===> core: register xc request wrapper filter")
         val filter = RequestWrapperFilter()
         val registrationBean = FilterRegistrationBean(filter)

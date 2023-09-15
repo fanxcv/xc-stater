@@ -22,8 +22,4 @@ public class Dict {
      * 参数注解默认值
      */
     public static final String DEFAULT_VALUE = "\n\t\t\n\t\t\n\ue000\ue001\ue002\n\t\t\t\t\n";
-    /**
-     * Auth认证,保存token的redis前缀
-     */
-    public static final String AUTH_REDIS_PREFIX = "xc:gateway:auth:";
 }

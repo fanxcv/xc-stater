@@ -22,12 +22,12 @@ import org.springframework.web.filter.CorsFilter
  */
 @Order
 @Configuration
-class XcCorsConfig(private val xcConfig: XcConfiguration) {
+open class XcCorsConfig(private val xcConfig: XcConfiguration) {
     private val log: Logger = LoggerFactory.getLogger(this::class.java)
 
     @Bean
     @ConditionalOnMissingBean(CorsFilter::class)
-    fun corsFilter(): CorsFilter {
+    open fun corsFilter(): CorsFilter {
         log.info("===> core: init xc cors filter")
         val config: CorsConfig = xcConfig.cors
         log.info("origins allowed {}", config.allowedOrigins)
@@ -47,7 +47,7 @@ class XcCorsConfig(private val xcConfig: XcConfiguration) {
 
     @Bean
     @ConditionalOnMissingBean(WebServerFactoryCustomizer::class)
-    fun cookieProcessorCustomizer(): WebServerFactoryCustomizer<TomcatServletWebServerFactory> {
+    open fun cookieProcessorCustomizer(): WebServerFactoryCustomizer<TomcatServletWebServerFactory> {
         log.info("===> core: init xc cookie processor customizer")
         return WebServerFactoryCustomizer { factory: TomcatServletWebServerFactory ->
             factory.addContextCustomizers(

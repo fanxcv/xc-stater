@@ -15,7 +15,7 @@ public class AuthConstant {
      */
     public static final String USER_PREFIX = "auth:user:";
     public static final String TOKEN_PREFIX = "auth:token:";
-    public static final String REDIS_SPLIT = ":";
+    public static final String DEFAULT_CLIENT = "default";
     /**
      * 基础放行路径
      */
