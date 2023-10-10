@@ -206,7 +206,9 @@ object NetUtils {
             }
         }
 
-        fun <T> doGet(function: (`is`: InputStream) -> T): T = doGet { _, c -> c.inputStream.use(function) }
+        fun <T> doGet(function: (`is`: InputStream) -> T): T = doGet { uri, connect ->
+            doResult(uri, connect) { _, c -> c.inputStream.use(function) }
+        }
 
         fun <T> doGet(url: String, type: Type): T {
             this.url = url
@@ -299,7 +301,9 @@ object NetUtils {
             }
         }
 
-        fun <T> doPost(function: (`is`: InputStream) -> T): T = doPost { _, c -> c.inputStream.use(function) }
+        fun <T> doPost(function: (`is`: InputStream) -> T): T = doPost { uri, connect ->
+            doResult(uri, connect) { _, c -> c.inputStream.use(function) }
+        }
 
         fun <T> doPost(type: Type): T = doPost { u, c -> getResult(u, c, type) }
 
@@ -333,25 +337,31 @@ object NetUtils {
         return s
     }
 
-    private fun <T> getResult(uri: String, connection: HttpURLConnection?, type: Type): T {
+    private fun <T> doResult(uri: String, connection: HttpURLConnection?, function: (uri: String, connection: HttpURLConnection) -> T): T {
         if (connection?.responseCode == HttpStatus.OK.value()) {
-            return try {
-                if (type == String::class.java) {
-                    BufferedReader(InputStreamReader(connection.inputStream)).use(BufferedReader::readText) as T
-                } else if (type is Class<*> && InputStream::class.java.isAssignableFrom(type)) {
-                    connection.inputStream.use { it as T }
-                } else {
-                    connection.inputStream.use { JSON.parseObject(it, type) }
-                }
-            } catch (e: Exception) {
-                throw XcToolsException("failed to parse the returned data, uri: $uri \n\t ${e.message}")
-            }
+            return function(uri, connection)
         }
         if (connection == null) {
             throw XcToolsException("http connection failed, uri: $uri")
         }
         val err = BufferedReader(InputStreamReader(connection.errorStream)).use(BufferedReader::readText)
         throw XcToolsException("Server Error, response code: ${connection.responseCode}, uri: $uri, message: $err")
+    }
+
+    private fun <T> getResult(uri: String, connection: HttpURLConnection?, type: Type): T {
+        return doResult(uri, connection) { _, c ->
+            try {
+                if (type == String::class.java) {
+                    BufferedReader(InputStreamReader(c.inputStream)).use(BufferedReader::readText) as T
+                } else if (type is Class<*> && InputStream::class.java.isAssignableFrom(type)) {
+                    c.inputStream.use { it as T }
+                } else {
+                    c.inputStream.use { JSON.parseObject(it, type) }
+                }
+            } catch (e: Exception) {
+                throw XcToolsException("failed to parse the returned data, uri: $uri \n\t ${e.message}")
+            }
+        }
     }
 
     private fun sendBody(connection: HttpURLConnection, body: ByteArray?) {

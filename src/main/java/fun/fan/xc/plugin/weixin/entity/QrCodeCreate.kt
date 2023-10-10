@@ -30,13 +30,7 @@ open class QrCodeCreate {
     @JSONField(name = "action_info")
     var actionInfo: ActionInfo? = null
 
-    class ActionInfo {
-        var scene: Scene? = null
-
-        constructor(scene: Scene? = null) {
-            this.scene = scene
-        }
-    }
+    class ActionInfo(private var scene: Scene? = null)
 
     class Scene {
         /**

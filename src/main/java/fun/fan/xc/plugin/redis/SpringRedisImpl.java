@@ -23,9 +23,8 @@ import java.util.function.Supplier;
 @RequiredArgsConstructor
 @ConditionalOnBean(RedisTemplate.class)
 public class SpringRedisImpl implements Redis {
-    private final RedisTemplate<String, Object> xcRedisTemplate;
-
     private static final Long RELEASE_SUCCESS = 1L;
+    private final RedisTemplate<String, Object> xcRedisTemplate;
 
     @Override
     public boolean set(String key, Object value) {
@@ -147,6 +146,13 @@ public class SpringRedisImpl implements Redis {
     @Override
     public boolean hmSet(String key, Map<String, Object> hash) {
         xcRedisTemplate.opsForHash().putAll(key, hash);
+        return true;
+    }
+
+    @Override
+    public boolean hmSetEx(String key, Map<String, Object> hash, long time, TimeUnit timeUnit) {
+        xcRedisTemplate.opsForHash().putAll(key, hash);
+        xcRedisTemplate.expire(key, time, timeUnit);
         return true;
     }
 

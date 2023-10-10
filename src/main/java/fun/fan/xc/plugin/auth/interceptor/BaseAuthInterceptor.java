@@ -6,7 +6,6 @@ import fun.fan.xc.plugin.auth.annotation.AuthIgnore;
 import fun.fan.xc.plugin.auth.service.XcAuthUserService;
 import fun.fan.xc.plugin.redis.Redis;
 import fun.fan.xc.starter.enums.ReturnCode;
-import fun.fan.xc.starter.exception.XcRunException;
 import fun.fan.xc.starter.exception.XcServiceException;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -41,19 +40,16 @@ public class BaseAuthInterceptor implements HandlerInterceptor {
         }
         // 判断接口是否需要做登录校验
         AuthIgnore authIgnore = ((HandlerMethod) handler).getMethodAnnotation(AuthIgnore.class);
-        if (Objects.nonNull(authIgnore)) {
-            return true;
-        }
         AuthConfigure.Configure configure = interceptor.getConfigure(authConfigure);
         String client = interceptor.client();
         // Token校验
         String token = interceptor.getToken(configure, request);
         if (StrUtil.isBlank(token)) {
-            throw new XcRunException(ReturnCode.UNAUTHORIZED);
+            return checkIgnore(authIgnore);
         }
         String account = redis.get(AuthConstant.TOKEN_PREFIX + token);
         if (StrUtil.isBlank(account)) {
-            throw new XcRunException(ReturnCode.UNAUTHORIZED);
+            return checkIgnore(authIgnore);
         }
         // 获取用户信息
         String key = AuthConstant.USER_PREFIX + account;
@@ -64,7 +60,7 @@ public class BaseAuthInterceptor implements HandlerInterceptor {
             authUtil.updateToken(token, client);
         } catch (IllegalArgumentException e) {
             log.error("read user info failed", e);
-            throw new XcServiceException(ReturnCode.UNAUTHORIZED);
+            return checkIgnore(authIgnore);
         }
         return true;
     }
@@ -72,5 +68,13 @@ public class BaseAuthInterceptor implements HandlerInterceptor {
     @Override
     public void afterCompletion(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull Object handler, Exception ex) throws Exception {
         AuthLocal.clearUser();
+    }
+
+    private boolean checkIgnore(AuthIgnore authIgnore) {
+        if (Objects.nonNull(authIgnore)) {
+            return true;
+        } else {
+            throw new XcServiceException(ReturnCode.UNAUTHORIZED);
+        }
     }
 }

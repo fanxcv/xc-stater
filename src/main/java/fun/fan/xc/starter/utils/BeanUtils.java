@@ -64,6 +64,19 @@ public class BeanUtils {
      * 以需要转换的bean字段为基础, 从源对象提取数据
      * 通过mapValues预设的转换规则, 可以做数据转换或字段映射
      *
+     * @param source     需要转换的Bean
+     * @param createDest 构建需要转换的Bean实体
+     * @return 转换成功的对象
+     */
+    public static <S, D> D beanToBean(S source, Supplier<D> createDest) {
+        return beanToBean(source, createDest, null, null);
+    }
+
+    /**
+     * Bean的转换，支持map转bean,不支持bean转map
+     * 以需要转换的bean字段为基础, 从源对象提取数据
+     * 通过mapValues预设的转换规则, 可以做数据转换或字段映射
+     *
      * @param source      需要转换的Bean
      * @param destination 需要转换成的Bean, source的同名属性会覆盖到destination的属性
      * @param mapValues   用于转换字段值,Function入参为原始对象,出参为新字段值
@@ -71,6 +84,20 @@ public class BeanUtils {
      */
     public static <S, D> D beanToBean(S source, D destination, Map<String, Function<S, Object>> mapValues) {
         return beanToBean(source, destination, null, mapValues);
+    }
+
+    /**
+     * Bean的转换，支持map转bean,不支持bean转map
+     * 以需要转换的bean字段为基础, 从源对象提取数据
+     * 通过mapValues预设的转换规则, 可以做数据转换或字段映射
+     *
+     * @param source     需要转换的Bean
+     * @param createDest 构建需要转换的Bean实体
+     * @param mapValues  用于转换字段值,Function入参为原始对象,出参为新字段值
+     * @return 转换成功的对象
+     */
+    public static <S, D> D beanToBean(S source, Supplier<D> createDest, Map<String, Function<S, Object>> mapValues) {
+        return beanToBean(source, createDest, null, mapValues);
     }
 
     /**
@@ -113,6 +140,20 @@ public class BeanUtils {
      */
     public static <S, D> D beanToBean(S source, Class<D> clazz, String[] ignore) {
         return beanToBean(source, clazz, ignore, null);
+    }
+
+    /**
+     * Bean的转换，支持map转bean,不支持bean转map
+     * 以需要转换的bean字段为基础, 从源对象提取数据
+     * 通过mapValues预设的转换规则, 可以做数据转换或字段映射
+     *
+     * @param source     需要转换的Bean
+     * @param createDest 构建需要转换的Bean实体
+     * @param ignore     忽略的字段
+     * @return 转换成功的对象
+     */
+    public static <S, D> D beanToBean(S source, Supplier<D> createDest, String[] ignore) {
+        return beanToBean(source, createDest, ignore, null);
     }
 
     /**
@@ -200,6 +241,25 @@ public class BeanUtils {
             log.error(e.getMessage(), e);
             throw new RuntimeException("copy bean fail");
         }
+    }
+
+    /**
+     * Bean的转换，支持map转bean,不支持bean转map
+     * 以需要转换的bean字段为基础, 从源对象提取数据
+     * 通过mapValues预设的转换规则, 可以做数据转换或字段映射
+     *
+     * @param source     需要转换的Bean
+     * @param createDest 构建需要转换的Bean实体
+     * @param ignore     忽略的字段
+     * @param mapValues  用于转换字段值,Function入参为原始对象,出参为新字段值
+     * @return 转换成功的对象
+     */
+    public static <S, D> D beanToBean(S source, Supplier<D> createDest, String[] ignore, Map<String, Function<S, Object>> mapValues) {
+        if (source == null || createDest == null) {
+            return null;
+        }
+
+        return beanToBean(source, createDest.get(), ignore, mapValues);
     }
 
     /**

@@ -1,10 +1,12 @@
 package `fun`.fan.xc.plugin.weixin.enums
 
+import com.alibaba.fastjson2.annotation.JSONField
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonValue
 
 enum class MiniProgramStateEnum(
     @JsonValue
+    @JSONField
     val value: String
 ) {
     /**

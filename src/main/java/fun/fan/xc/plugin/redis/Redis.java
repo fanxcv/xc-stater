@@ -193,6 +193,15 @@ public interface Redis {
     boolean hmSet(String key, Map<String, Object> hash);
 
     /**
+     * 存储整个map对象
+     *
+     * @param key:  key
+     * @param hash: value
+     * @return 如果命令执行成功，返回 OK
+     **/
+    boolean hmSetEx(String key, Map<String, Object> hash, long time, TimeUnit timeUnit);
+
+    /**
      * 判断缓存map中的field是否存在
      *
      * @param key:   key

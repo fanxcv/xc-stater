@@ -89,4 +89,9 @@ object WeiXinDict {
      * 公众号菜单创建
      */
     const val WX_MENU_CREATE = "$WX_API_HOST/cgi-bin/menu/create?access_token=%s"
+
+    /**
+     * 获取不限制的小程序码
+     */
+    const val MP_UNLIMITED_QR_CODE= "$WX_API_HOST/wxa/getwxacodeunlimit?access_token=%s"
 }

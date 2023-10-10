@@ -1,5 +1,6 @@
 package `fun`.fan.xc.plugin.weixin.program
 
+import cn.hutool.core.codec.Base64
 import cn.hutool.core.util.StrUtil
 import com.alibaba.fastjson2.JSON
 import com.fasterxml.jackson.annotation.JsonProperty
@@ -9,6 +10,7 @@ import `fun`.fan.xc.plugin.weixin.WeiXinDict
 import `fun`.fan.xc.plugin.weixin.WeiXinUtils
 import `fun`.fan.xc.plugin.weixin.entity.*
 import `fun`.fan.xc.starter.exception.XcRunException
+import `fun`.fan.xc.starter.exception.XcToolsException
 import `fun`.fan.xc.starter.utils.BeanUtils
 import `fun`.fan.xc.starter.utils.NetUtils
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -17,14 +19,16 @@ import org.springframework.core.io.DefaultResourceLoader
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
 import org.springframework.util.Assert
+import java.io.BufferedReader
+import java.io.InputStreamReader
 import java.nio.charset.StandardCharsets
-import javax.servlet.http.HttpServletRequest
-import javax.servlet.http.HttpServletResponse
 import java.security.KeyStore
 import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.KeyManagerFactory
 import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLSocketFactory
+import javax.servlet.http.HttpServletRequest
+import javax.servlet.http.HttpServletResponse
 
 
 @Lazy
@@ -172,6 +176,22 @@ class ProgramWeiXinApi(
             resp.refundInfo = WeiXinUtils.decodeRefundInfo(resp.reqInfo!!, config.miniProgram.pay.apiV2Key)
             doNotify(action(resp), response)
         }
+    }
+
+    /**
+     * 获取不限制的小程序码
+     */
+    fun getUnlimitedQRCode(param: MPUnlimitedQRCode): String {
+        return NetUtils.build(WeiXinDict.MP_UNLIMITED_QR_CODE.format(accessTokenManager.token()))
+            .body(param)
+            .doPost { `is` ->
+                val available = `is`.available()
+                if (available < 256) {
+                    val msg = BufferedReader(InputStreamReader(`is`)).use(BufferedReader::readText)
+                    throw XcToolsException("request QRCode failed, message: $msg")
+                }
+                Base64.encode(`is`)
+            }
     }
 
     private fun doNotify(exec: Boolean, response: HttpServletResponse) {
