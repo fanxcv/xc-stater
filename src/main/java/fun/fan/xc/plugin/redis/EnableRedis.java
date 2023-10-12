@@ -7,6 +7,7 @@ import java.lang.annotation.*;
 /**
  * @author fan
  */
+@Inherited
 @Documented
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)

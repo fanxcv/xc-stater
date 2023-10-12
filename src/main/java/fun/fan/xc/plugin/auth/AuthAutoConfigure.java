@@ -9,6 +9,7 @@ import fun.fan.xc.plugin.auth.service.XcAuthUserService;
 import fun.fan.xc.plugin.redis.Redis;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
@@ -26,6 +27,7 @@ import java.util.Set;
  *
  * @author fan
  */
+@Slf4j
 @RequiredArgsConstructor
 public class AuthAutoConfigure implements WebMvcConfigurer, ApplicationContextAware {
     private final XcAuthUserService userService;
@@ -41,7 +43,7 @@ public class AuthAutoConfigure implements WebMvcConfigurer, ApplicationContextAw
             AuthConfigure.Configure configure = v.getConfigure(authConfigure);
             Set<String> excludePath = configure.getExcludePath();
             excludePath.addAll(AuthConstant.BASE_EXCLUDE_PATH);
-
+            log.info("===> auth: init xc-boot-auth in {}, exclude {}", configure.getPath(), configure.getExcludePath());
             registry.addInterceptor(new BaseAuthInterceptor(redis, authUtil, authConfigure, userService, v))
                     .excludePathPatterns(Lists.newLinkedList(excludePath))
                     .addPathPatterns(configure.getPath())

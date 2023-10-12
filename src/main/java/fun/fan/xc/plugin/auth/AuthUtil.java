@@ -4,8 +4,8 @@ import cn.hutool.core.lang.UUID;
 import fun.fan.xc.plugin.redis.Redis;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -26,7 +26,7 @@ public class AuthUtil {
      */
     public String createToken(XcBaseUser user) {
         String token = UUID.fastUUID().toString(true);
-        String client = Optional.ofNullable(user.getClient()).orElse("default");
+        String client = Optional.ofNullable(user.getClient()).orElse(AuthConstant.DEFAULT_CLIENT);
         AuthConfigure.Configure configure = authConfigure.getConfigureByClient(client);
         redis.setEx(AuthConstant.TOKEN_PREFIX + token, user.getAccount(), configure.getExpires(), TimeUnit.MINUTES);
         // TODO 同时登陆限制
@@ -53,5 +53,15 @@ public class AuthUtil {
         // 移除缓存的用户信息
         redis.del(AuthConstant.USER_PREFIX + redis.get(key));
         return redis.del(key) > 0L;
+    }
+
+    /**
+     * 刷新用户信息
+     */
+    public void refreshUserInfo() {
+        XcBaseUser user = AuthLocal.getUser();
+        if (Objects.nonNull(user)) {
+            redis.del(AuthConstant.USER_PREFIX + user.getAccount());
+        }
     }
 }

@@ -36,12 +36,13 @@ public interface XcAuthInterceptor {
      * @param user 待校验的用户对象
      * @return 校验结果
      */
-    default boolean checkUser(XcBaseUser user){
+    default boolean checkUser(XcBaseUser user) {
         return true;
     }
 
     /**
      * 获取客户端配置
+     *
      * @return 配置对象
      */
     default AuthConfigure.Configure getConfigure(AuthConfigure configure) {

@@ -8,10 +8,10 @@ import org.springframework.util.Assert;
  * @author fan
  */
 public class AuthLocal {
+    private static final ThreadLocal<XcBaseUser> THREAD_LOCAL = new ThreadLocal<>();
+
     private AuthLocal() {
     }
-
-    private static final ThreadLocal<XcBaseUser> THREAD_LOCAL = new ThreadLocal<>();
 
     public static XcBaseUser getUser() {
         return THREAD_LOCAL.get();

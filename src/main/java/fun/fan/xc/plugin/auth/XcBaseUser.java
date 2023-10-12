@@ -1,37 +1,23 @@
 package fun.fan.xc.plugin.auth;
 
-import com.alibaba.fastjson2.annotation.JSONField;
-import com.baomidou.mybatisplus.annotation.TableField;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import io.swagger.v3.oas.annotations.Hidden;
-import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.Data;
-import lombok.experimental.Accessors;
-
 /**
- * 用户基础类
+ * 用户基础接口
  *
  * @author fan
  */
-@Data
-@Accessors(chain = true)
-@Schema(description = "基础用户信息")
-public class XcBaseUser {
-    @TableField
-    @Schema(description = "用户账户")
-    private String account;
+public interface XcBaseUser {
 
-    @TableField
-    @Schema(description = "用户名")
-    private String name;
+    String getAccount();
 
-    @TableField(exist = false)
-    @Schema(description = "登录返回Token")
-    private String token;
+    String getName();
 
-    @Hidden
-    @JsonIgnore
-    @TableField(exist = false)
-    @JSONField(serialize = false)
-    private String client = AuthConstant.DEFAULT_CLIENT;
+    String getToken();
+
+    void setToken(String token);
+
+    default String getClient() {
+        return AuthConstant.DEFAULT_CLIENT;
+    }
+
+    void setClient(String client);
 }
