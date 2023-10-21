@@ -336,6 +336,13 @@ public interface Redis {
     <T> T exec(String script, Class<T> clazz, List<String> keys, Object... value);
 
     /**
+     * 发布消息
+     * @param channel 队列名
+     * @param message 消息类容
+     */
+    void publish(String channel, Object message);
+
+    /**
      * 尝试获取分布式锁(单节点redis和r2m适用)
      *
      * @param lockKey     锁的key
