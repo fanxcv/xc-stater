@@ -13,7 +13,7 @@ public class AuthConstant {
     /**
      * 用户缓存前缀
      */
-    public static final String USER_PREFIX = "auth:user:";
+    public static final String USER_PREFIX = "auth:user:%s:%s";
     public static final String TOKEN_PREFIX = "auth:token:";
     public static final String DEFAULT_CLIENT = "default";
     /**

@@ -1,7 +1,6 @@
 package `fun`.fan.xc.starter.exception
 
 import `fun`.fan.xc.starter.enums.ReturnCode
-import org.springframework.http.HttpStatus
 
 /**
  * @author fan

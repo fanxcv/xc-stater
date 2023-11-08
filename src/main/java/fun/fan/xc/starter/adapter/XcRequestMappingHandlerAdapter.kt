@@ -1,9 +1,9 @@
 package `fun`.fan.xc.starter.adapter
 
 import com.fan.xc.boot.starter.handler.InjectEntityHandlerMethodArgumentResolver
-import `fun`.fan.xc.starter.handler.VerifyParamHandlerMethodArgumentResolver
 import `fun`.fan.xc.starter.exception.XcRunException
 import `fun`.fan.xc.starter.handler.EventHandlerMethodArgumentResolver
+import `fun`.fan.xc.starter.handler.VerifyParamHandlerMethodArgumentResolver
 import `fun`.fan.xc.starter.interfaces.XcHandlerMethodArgumentResolver
 import org.springframework.lang.NonNull
 import org.springframework.web.method.support.HandlerMethodArgumentResolver

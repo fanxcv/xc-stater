@@ -2,6 +2,7 @@ package fun.fan.xc.plugin.auth;
 
 import cn.hutool.core.lang.UUID;
 import fun.fan.xc.plugin.redis.Redis;
+import fun.fan.xc.starter.exception.XcToolsException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -49,10 +50,15 @@ public class AuthUtil {
      * @param token 待移除Token
      */
     public boolean removeToken(String token) {
+        XcBaseUser user = AuthLocal.getUser();
         String key = AuthConstant.TOKEN_PREFIX + token;
-        // 移除缓存的用户信息
-        redis.del(AuthConstant.USER_PREFIX + redis.get(key));
-        return redis.del(key) > 0L;
+        if (Objects.nonNull(user) && user.getAccount().equals(redis.get(key))) {
+            // 移除缓存的用户信息
+            redis.del(String.format(AuthConstant.USER_PREFIX, user.getClient(), user.getAccount()));
+            return redis.del(key) > 0L;
+        } else {
+            throw new XcToolsException("移出Token失败");
+        }
     }
 
     /**
@@ -61,7 +67,7 @@ public class AuthUtil {
     public void refreshUserInfo() {
         XcBaseUser user = AuthLocal.getUser();
         if (Objects.nonNull(user)) {
-            redis.del(AuthConstant.USER_PREFIX + user.getAccount());
+            redis.del(String.format(AuthConstant.USER_PREFIX, user.getClient(), user.getAccount()));
         }
     }
 }

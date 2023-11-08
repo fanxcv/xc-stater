@@ -8,6 +8,7 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.springframework.cglib.beans.BeanCopier;
 import org.springframework.util.CollectionUtils;
 
+import java.lang.annotation.*;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
@@ -194,6 +195,10 @@ public class BeanUtils {
                 String name = field.getName();
                 // 处理忽略字段
                 if (Objects.nonNull(map.get(name))) {
+                    continue;
+                }
+                // 忽律添加了注释的字段
+                if (field.getAnnotationsByType(Ignore.class).length > 0) {
                     continue;
                 }
                 // 获取值,先尝试从映射表中获取,获取不到的话尝试从原始数据类获取
@@ -488,5 +493,13 @@ public class BeanUtils {
             wrapper.put(key, value);
         });
         return wrapper;
+    }
+
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ElementType.FIELD})
+    @Documented
+    @Inherited
+    public @interface Ignore {
+
     }
 }

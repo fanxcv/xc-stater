@@ -45,6 +45,7 @@ object NetUtils {
         private var readTimeout: Int = 30
         private var connectTimeout: Int = 10
         private var contentType: MediaType = MediaType.APPLICATION_JSON
+        private var respType: Type = String::class.java
         private val headers: MutableMap<String, String> = Maps.newHashMap()
         private val params: MutableMap<String, Any?> = Maps.newHashMap()
         private val files: MutableList<Upload> = Lists.newLinkedList()
@@ -134,6 +135,14 @@ object NetUtils {
         }
 
         /**
+         * 设置返回类型
+         */
+        fun respType(respType: Type): Builder {
+            this.respType = respType
+            return this
+        }
+
+        /**
          * 添加认证header
          */
         fun authorization(token: String): Builder {
@@ -217,22 +226,24 @@ object NetUtils {
 
         fun <T> doGet(type: Type): T = doGet { u, c -> getResult(u, c, type) }
 
-        fun doGet(url: String): String {
+        fun <T> doGet(url: String): T {
             this.url = url
-            return doGet { u, c -> getResult(u, c, String::class.java) }
+            return doGet { u, c -> getResult(u, c, respType) }
         }
 
-        fun doGet(): String = doGet { u, c -> getResult(u, c, String::class.java) }
+        fun <T> doGet(): T = doGet { u, c -> getResult(u, c, respType) }
 
         fun <T> doPost(function: (uri: String, connection: HttpURLConnection) -> T): T {
             if (url.isBlank()) {
                 throw XcToolsException("请求url不能为空")
             }
+
             if (body != null) {
                 log.warn("params will be ignored, because body is not null")
             } else {
                 body = params
             }
+
             var connection: HttpURLConnection? = null
             try {
                 connection = initPostConnection(url, connectTimeout, readTimeout)
@@ -254,9 +265,6 @@ object NetUtils {
                     }
 
                     MediaType.MULTIPART_FORM_DATA -> {
-                        if (body != null) {
-                            log.warn("input by body filed will be ignored in FormData request, please use addFile method or addParam(s) method")
-                        }
                         val boundary = "----------" + System.currentTimeMillis()
                         connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
                         // 获得输出流
@@ -271,18 +279,12 @@ object NetUtils {
                     }
 
                     MediaType.APPLICATION_XML -> {
-                        if (params.isNotEmpty()) {
-                            log.warn("input by addParam(s) method will be ignored in XML request, please use body method")
-                        }
                         connection.setRequestProperty("Content-Type", MediaType.APPLICATION_ATOM_XML_VALUE)
                         bytes = (body as? String)?.toByteArray() ?: XMLMapper.writeValueAsBytes(body)
                         sendBody(connection, bytes)
                     }
 
                     else -> {
-                        if (params.isNotEmpty()) {
-                            log.warn("input by addParam(s) method will be ignored in Json request, please use body method")
-                        }
                         // 按照JSON处理
                         connection.setRequestProperty("Content-Type", MediaType.APPLICATION_JSON_VALUE)
                         bytes = (body as? String)?.toByteArray() ?: JSON.toJSONBytes(body)
@@ -307,7 +309,7 @@ object NetUtils {
 
         fun <T> doPost(type: Type): T = doPost { u, c -> getResult(u, c, type) }
 
-        fun doPost(): String = doPost { u, c -> getResult(u, c, String::class.java) }
+        fun <T> doPost(): T = doPost { u, c -> getResult(u, c, respType) }
     }
 
     /**

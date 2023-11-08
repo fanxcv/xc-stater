@@ -1,7 +1,7 @@
 package `fun`.fan.xc.plugin.drone.service
 
-import `fun`.fan.xc.starter.utils.NetUtils.build
 import `fun`.fan.xc.starter.XcConfiguration
+import `fun`.fan.xc.starter.utils.NetUtils.build
 import java.lang.reflect.Type
 
 /**

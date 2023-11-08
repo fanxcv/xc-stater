@@ -121,7 +121,12 @@ class XcScannerConfig : ImportBeanDefinitionRegistrar, ResourceLoaderAware, Bean
                 log.error("load class [$className] error")
                 return
             }
-            val fields: List<Field> = BeanUtils.getAllFields(clazz, false)
+            val fields: List<Field> = try {
+                BeanUtils.getAllFields(clazz, false)
+            } catch (e: Exception) {
+                log.error("获取 [${clazz.name}] 属性失败: ${e.message}")
+                return
+            }
             for (field in fields) {
                 val annotations = field.annotations
                 if (ArrayUtil.isEmpty(annotations)) {

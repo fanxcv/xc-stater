@@ -2,7 +2,7 @@ package `fun`.fan.xc.plugin.weixin.entity
 
 import com.alibaba.fastjson2.annotation.JSONField
 import com.fasterxml.jackson.annotation.JsonProperty
-import java.util.LinkedList
+import java.util.*
 
 /**
  *

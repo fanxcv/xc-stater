@@ -1,9 +1,7 @@
 package `fun`.fan.xc.plugin.weixin.entity
 
-import cn.hutool.core.lang.UUID
 import com.alibaba.fastjson2.annotation.JSONField
 import com.fasterxml.jackson.annotation.JsonProperty
-import `fun`.fan.xc.starter.exception.XcRunException
 
 /**
  * 微信统一下单接口

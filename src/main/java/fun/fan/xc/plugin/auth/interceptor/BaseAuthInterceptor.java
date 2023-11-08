@@ -52,7 +52,7 @@ public class BaseAuthInterceptor implements HandlerInterceptor {
             return checkIgnore(authIgnore);
         }
         // 获取用户信息
-        String key = AuthConstant.USER_PREFIX + account;
+        String key = String.format(AuthConstant.USER_PREFIX, client, account);
         try {
             XcBaseUser user = redis.getOrLoadEx(key, configure.getUserCacheExpires(), TimeUnit.MINUTES, () -> authUserService.select(client, account));
             Assert.isTrue(interceptor.checkUser(user), "用户异常");
