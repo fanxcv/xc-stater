@@ -234,6 +234,32 @@ public class SpringRedisImpl implements Redis {
     }
 
     @Override
+    public void sAdd(String key, Object... value) {
+        xcRedisTemplate.opsForSet().add(key, value);
+    }
+
+    @Override
+    public void sAddEx(String key, long time, TimeUnit timeUnit, Object... value) {
+        xcRedisTemplate.opsForSet().add(key, value);
+        xcRedisTemplate.expire(key, time, timeUnit);
+    }
+
+    @Override
+    public boolean sIsMember(String key, Object value) {
+        Boolean res = xcRedisTemplate.opsForSet().isMember(key, value);
+        return res != null && res;
+    }
+
+    @Override
+    public boolean sAnyIsMember(String key, Object... value) {
+        Map<Object, Boolean> map = xcRedisTemplate.opsForSet().isMember(key, value);
+        if (map == null) {
+            return false;
+        }
+        return map.entrySet().stream().anyMatch(Map.Entry::getValue);
+    }
+
+    @Override
     public long del(String... key) {
         final Long len = xcRedisTemplate.delete(Arrays.asList(key));
         return len == null ? 0 : len;

@@ -3,9 +3,7 @@ package fun.fan.xc.plugin.auth;
 import cn.hutool.core.lang.Assert;
 import com.google.common.collect.Lists;
 import fun.fan.xc.plugin.auth.interceptor.BaseAuthInterceptor;
-import fun.fan.xc.plugin.auth.interceptor.XcAuthInterceptor;
 import fun.fan.xc.plugin.auth.resolver.UserHandlerMethodArgumentResolver;
-import fun.fan.xc.plugin.auth.service.XcAuthUserService;
 import fun.fan.xc.plugin.redis.Redis;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -30,12 +28,11 @@ import java.util.Set;
 @Slf4j
 @RequiredArgsConstructor
 public class AuthAutoConfigure implements WebMvcConfigurer, ApplicationContextAware {
-    private final XcAuthUserService userService;
     private final AuthConfigure authConfigure;
     private final AuthUtil authUtil;
     private final Redis redis;
 
-    private Map<String, XcAuthInterceptor> beans;
+    private Map<String, XcAuthInterface> beans;
 
     @Override
     public void addInterceptors(@NonNull InterceptorRegistry registry) {
@@ -44,7 +41,7 @@ public class AuthAutoConfigure implements WebMvcConfigurer, ApplicationContextAw
             Set<String> excludePath = configure.getExcludePath();
             excludePath.addAll(AuthConstant.BASE_EXCLUDE_PATH);
             log.info("===> auth: init xc-boot-auth in {}, exclude {}", configure.getPath(), configure.getExcludePath());
-            registry.addInterceptor(new BaseAuthInterceptor(redis, authUtil, authConfigure, userService, v))
+            registry.addInterceptor(new BaseAuthInterceptor(redis, authUtil, authConfigure, v))
                     .excludePathPatterns(Lists.newLinkedList(excludePath))
                     .addPathPatterns(configure.getPath())
                     .order(Ordered.HIGHEST_PRECEDENCE);
@@ -58,7 +55,7 @@ public class AuthAutoConfigure implements WebMvcConfigurer, ApplicationContextAw
 
     @Override
     public void setApplicationContext(@NonNull ApplicationContext applicationContext) throws BeansException {
-        this.beans = applicationContext.getBeansOfType(XcAuthInterceptor.class);
+        this.beans = applicationContext.getBeansOfType(XcAuthInterface.class);
         Assert.notEmpty(beans, "请先实现XcAuthInterceptor接口");
     }
 }

@@ -15,6 +15,7 @@ public class AuthConstant {
      */
     public static final String USER_PREFIX = "auth:user:%s:%s";
     public static final String TOKEN_PREFIX = "auth:token:";
+    public static final String PERMISSION_PREFIX = "auth:permission:%s:%s";
     public static final String DEFAULT_CLIENT = "default";
     /**
      * 基础放行路径

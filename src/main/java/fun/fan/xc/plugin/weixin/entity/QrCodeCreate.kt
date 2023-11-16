@@ -30,7 +30,20 @@ open class QrCodeCreate {
     @JSONField(name = "action_info")
     var actionInfo: ActionInfo? = null
 
-    class ActionInfo(private var scene: Scene? = null)
+    class ActionInfo {
+        /**
+         * 二维码详细信息
+         */
+        @JsonProperty("scene")
+        @JSONField(name = "scene")
+        var scene: Scene? = null
+
+        constructor(scene: Scene) {
+            this.scene = scene
+        }
+
+        constructor()
+    }
 
     class Scene {
         /**
@@ -59,5 +72,7 @@ open class QrCodeCreate {
         constructor(sceneStr: String? = null) {
             this.sceneStr = sceneStr
         }
+
+        constructor()
     }
 }

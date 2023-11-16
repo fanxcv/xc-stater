@@ -301,6 +301,42 @@ public interface Redis {
     <T> T rPop(String key);
 
     /**
+     * 向Set中新增元素
+     *
+     * @param key   key
+     * @param value 需要添加的元素
+     */
+    void sAdd(String key, Object... value);
+
+    /**
+     * 向Set中新增元素
+     *
+     * @param key      key
+     * @param time     过期时间,毫秒
+     * @param timeUnit 时间单位
+     * @param value    需要添加的元素
+     */
+    void sAddEx(String key, long time, TimeUnit timeUnit, Object... value);
+
+    /**
+     * 判断元素是否在Set里面
+     *
+     * @param key   key
+     * @param value value
+     * @return 是否存在
+     */
+    boolean sIsMember(String key, Object value);
+
+    /**
+     * 判断元素是否在Set里面, 任意一个存在即可
+     *
+     * @param key   key
+     * @param value value
+     * @return 是否存在
+     */
+    boolean sAnyIsMember(String key, Object... value);
+
+    /**
      * 删除key
      *
      * @param key 可以传一个值 或多个
@@ -337,6 +373,7 @@ public interface Redis {
 
     /**
      * 发布消息
+     *
      * @param channel 队列名
      * @param message 消息类容
      */

@@ -1,17 +1,14 @@
-package fun.fan.xc.plugin.auth.interceptor;
-
-import fun.fan.xc.plugin.auth.AuthConfigure;
-import fun.fan.xc.plugin.auth.AuthConstant;
-import fun.fan.xc.plugin.auth.XcBaseUser;
+package fun.fan.xc.plugin.auth;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.Set;
 
 /**
  * 管理端认证拦截器
  *
  * @author fan
  */
-public interface XcAuthInterceptor {
+public interface XcAuthInterface {
 
     /**
      * 返回客户端名称
@@ -48,4 +45,22 @@ public interface XcAuthInterceptor {
     default AuthConfigure.Configure getConfigure(AuthConfigure configure) {
         return configure.getConfigureByClient(this.client());
     }
+
+    /**
+     * 获取权限列表
+     *
+     * @param user 当前用户
+     * @return 权限列表
+     */
+    default Set<String> selectPermissions(XcBaseUser user) {
+        return null;
+    }
+
+    /**
+     * 通过accountId查询User对象服务
+     *
+     * @param account accountId
+     * @return user对象
+     */
+    XcBaseUser select(String client, String account);
 }
