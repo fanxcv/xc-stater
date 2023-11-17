@@ -179,6 +179,78 @@ class ProgramWeiXinApi(
     }
 
     /**
+     * 委托代扣-申请扣款
+     * see https://pay.weixin.qq.com/wiki/doc/api/wxpay_v2/papay/chapter3_8.shtml
+     */
+    fun payPapPayApply(apply: PayPapPayApply): PayBaseResp {
+        WeiXinUtils.sign(apply, config.miniProgram.pay.apiV2Key)
+        return NetUtils.build(WeiXinDict.WX_API_PAY_PAP_APPLY)
+            .contentType(MediaType.APPLICATION_XML)
+            .body(apply)
+            .beforeRequest {
+                if (it.url.protocol != "https") {
+                    throw XcRunException("微信退款接口必须使用 https 协议")
+                }
+                (it as HttpsURLConnection).sslSocketFactory = wxSslSocketFactory
+            }
+            .doPost { it ->
+                val bytes = it.readBytes()
+                NetUtils.XMLMapper.readValue(bytes, PayBaseResp::class.java)
+            }
+    }
+
+    /**
+     * 委托代扣-扣款结果通知
+     * see https://pay.weixin.qq.com/wiki/doc/api/wxpay_v2/papay/chapter4_2.shtml
+     */
+    fun payPapPayApplyNotify(
+        request: HttpServletRequest,
+        response: HttpServletResponse,
+        action: (PayPapPayApplyNotifyResp) -> Boolean
+    ) {
+        request.inputStream.use {
+            val resp = NetUtils.XMLMapper.readValue(it.readBytes(), PayPapPayApplyNotifyResp::class.java)
+            doNotify(action(resp), response)
+        }
+    }
+
+    /**
+     * 委托代扣-申请解约
+     * see https://pay.weixin.qq.com/wiki/doc/api/wxpay_v2/papay/chapter3_9.shtml
+     */
+    fun payDeleteContract(v: PayDeleteContract): PayDeleteContractResp {
+        WeiXinUtils.sign(v, config.miniProgram.pay.apiV2Key)
+        return NetUtils.build(WeiXinDict.WX_API_PAY_DELETE_CONTRACT)
+            .contentType(MediaType.APPLICATION_XML)
+            .body(v)
+            .beforeRequest {
+                if (it.url.protocol != "https") {
+                    throw XcRunException("微信退款接口必须使用 https 协议")
+                }
+                (it as HttpsURLConnection).sslSocketFactory = wxSslSocketFactory
+            }
+            .doPost { it ->
+                val bytes = it.readBytes()
+                NetUtils.XMLMapper.readValue(bytes, PayDeleteContractResp::class.java)
+            }
+    }
+
+    /**
+     * 委托代扣-签约,解约结果通知
+     * see https://pay.weixin.qq.com/wiki/doc/api/wxpay_v2/papay/chapter3_6.shtml
+     */
+    fun payAddOrDelContractNotify(
+        request: HttpServletRequest,
+        response: HttpServletResponse,
+        action: (PayAddOrDelContractNotifyResp) -> Boolean
+    ) {
+        request.inputStream.use {
+            val resp = NetUtils.XMLMapper.readValue(it.readBytes(), PayAddOrDelContractNotifyResp::class.java)
+            doNotify(action(resp), response)
+        }
+    }
+
+    /**
      * 获取不限制的小程序码
      */
     fun getUnlimitedQRCode(param: MPUnlimitedQRCode): String {

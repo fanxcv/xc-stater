@@ -23,7 +23,7 @@ open class PayBase {
      */
     @JsonProperty("nonce_str")
     @JSONField(name = "nonce_str")
-    var nonceStr: String = UUID.fastUUID().toString(true)
+    open var nonceStr: String? = UUID.fastUUID().toString(true)
 
     /**
      * 签名
@@ -35,9 +35,9 @@ open class PayBase {
      */
     @JsonProperty("sign_type")
     @JSONField(name = "sign_type")
-    var signType: SignType = SignType.MD5
+    open var signType: SignType? = SignType.MD5
         set(value) {
-            if (value != SignType.MD5) {
+            if (value != null && value != SignType.MD5) {
                 throw XcRunException("不支持的签名类型")
             }
             field = value

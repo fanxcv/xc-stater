@@ -62,5 +62,5 @@ public interface XcAuthInterface {
      * @param account accountId
      * @return user对象
      */
-    XcBaseUser select(String client, String account);
+    XcBaseUser select(String account);
 }

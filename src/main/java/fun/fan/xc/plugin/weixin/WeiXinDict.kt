@@ -76,6 +76,16 @@ object WeiXinDict {
     const val WX_API_PAY_REFUND = "$WX_PAY_HOST/secapi/pay/refund"
 
     /**
+     * 委托代扣-申请扣款
+     */
+    const val WX_API_PAY_PAP_APPLY = "$WX_PAY_HOST/pay/pappayapply"
+
+    /**
+     * 委托代扣-申请解约
+     */
+    const val WX_API_PAY_DELETE_CONTRACT = "$WX_PAY_HOST/papay/deletecontract"
+
+    /**
      * 公众号二维码创建
      */
     const val WX_CREATE_QR_CODE = "$WX_API_HOST/cgi-bin/qrcode/create?access_token=%s"

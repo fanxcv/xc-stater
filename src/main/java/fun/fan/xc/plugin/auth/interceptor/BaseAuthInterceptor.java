@@ -1,5 +1,6 @@
 package fun.fan.xc.plugin.auth.interceptor;
 
+import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.ArrayUtil;
 import cn.hutool.core.util.StrUtil;
 import fun.fan.xc.plugin.auth.*;
@@ -11,15 +12,13 @@ import fun.fan.xc.starter.exception.XcServiceException;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.util.Assert;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -57,11 +56,7 @@ public class BaseAuthInterceptor implements HandlerInterceptor {
         try {
             // 获取用户信息
             String key = String.format(AuthConstant.USER_PREFIX, client, account);
-            XcBaseUser user = redis.getOrLoadEx(key, configure.getUserCacheExpires(), TimeUnit.MINUTES, () -> {
-                XcBaseUser u = xcAuthInterface.select(client, account);
-                Assert.isTrue(Objects.equals(client, u.getClient()), "查询的用户client与配置的client不一致");
-                return u;
-            });
+            XcBaseUser user = redis.getOrLoadEx(key, configure.getUserCacheExpires(), TimeUnit.MINUTES, () -> xcAuthInterface.select(account));
             Assert.isTrue(xcAuthInterface.checkUser(user), "用户异常");
             AuthLocal.setUser(user);
             authUtil.updateToken(token, client);
@@ -72,11 +67,11 @@ public class BaseAuthInterceptor implements HandlerInterceptor {
                 return true;
             }
             String[] role = annotation.role();
-            if (ArrayUtil.isNotEmpty(role) && !authUtil.checkRoles(user, role)) {
+            if (ArrayUtil.isNotEmpty(role) && !checkRoles(user, role)) {
                 throw new XcServiceException(ReturnCode.FORBIDDEN);
             }
             String[] permission = annotation.permission();
-            return authUtil.checkPermissions(user, permission);
+            return checkPermissions(user, permission);
         } catch (IllegalArgumentException e) {
             log.error("read user info failed", e);
             return checkIgnore(authIgnore);
@@ -94,5 +89,46 @@ public class BaseAuthInterceptor implements HandlerInterceptor {
         } else {
             throw new XcServiceException(ReturnCode.UNAUTHORIZED);
         }
+    }
+
+
+    /**
+     * 角色校验
+     *
+     * @param user  待校验的用户
+     * @param roles 需要判断的角色列表
+     * @return 校验结果
+     */
+    public boolean checkRoles(XcBaseUser user, String... roles) {
+        if (Objects.isNull(user) || CollUtil.isEmpty(user.getRoles())) {
+            return false;
+        }
+        if (Objects.isNull(roles) || roles.length == 0) {
+            return false;
+        }
+        Collection<String> c = user.getRoles();
+        return Arrays.stream(roles).anyMatch(c::contains);
+    }
+
+    /**
+     * 校验权限
+     *
+     * @param user       待校验的用户
+     * @param permission 需要判断的权限列表
+     * @return 校验结果
+     */
+    public boolean checkPermissions(XcBaseUser user, String... permission) {
+        if (Objects.isNull(permission) || permission.length == 0) {
+            return false;
+        }
+        String client = Optional.ofNullable(user.getClient()).orElse(AuthConstant.DEFAULT_CLIENT);
+        // 查询用户权限
+        String key = String.format(AuthConstant.PERMISSION_PREFIX, user.getClient(), user.getAccount());
+        if (!redis.exists(key)) {
+            AuthConfigure.Configure configure = authConfigure.getConfigureByClient(client);
+            Set<String> permissions = Optional.ofNullable(xcAuthInterface.selectPermissions(user)).orElse(new HashSet<>());
+            redis.sAddEx(key, configure.getExpires(), TimeUnit.MINUTES, permissions.toArray());
+        }
+        return redis.sIsMember(key, permission);
     }
 }

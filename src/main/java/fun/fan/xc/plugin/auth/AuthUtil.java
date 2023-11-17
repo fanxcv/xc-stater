@@ -1,13 +1,13 @@
 package fun.fan.xc.plugin.auth;
 
-import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.lang.UUID;
 import fun.fan.xc.plugin.redis.Redis;
 import fun.fan.xc.starter.exception.XcToolsException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.*;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -18,7 +18,6 @@ import java.util.concurrent.TimeUnit;
 public class AuthUtil {
     private final Redis redis;
     private final AuthConfigure authConfigure;
-    private final XcAuthInterface xcAuthInterface;
 
     /**
      * 创建 Token
@@ -78,45 +77,5 @@ public class AuthUtil {
         if (Objects.nonNull(user)) {
             redis.del(String.format(AuthConstant.USER_PREFIX, user.getClient(), user.getAccount()));
         }
-    }
-
-    /**
-     * 角色校验
-     *
-     * @param user  待校验的用户
-     * @param roles 需要判断的角色列表
-     * @return 校验结果
-     */
-    public boolean checkRoles(XcBaseUser user, String... roles) {
-        if (Objects.isNull(user) || CollUtil.isEmpty(user.getRoles())) {
-            return false;
-        }
-        if (Objects.isNull(roles) || roles.length == 0) {
-            return false;
-        }
-        Collection<String> c = user.getRoles();
-        return Arrays.stream(roles).anyMatch(c::contains);
-    }
-
-    /**
-     * 校验权限
-     *
-     * @param user       待校验的用户
-     * @param permission 需要判断的权限列表
-     * @return 校验结果
-     */
-    public boolean checkPermissions(XcBaseUser user, String... permission) {
-        if (Objects.isNull(permission) || permission.length == 0) {
-            return false;
-        }
-        String client = Optional.ofNullable(user.getClient()).orElse(AuthConstant.DEFAULT_CLIENT);
-        // 查询用户权限
-        String key = String.format(AuthConstant.PERMISSION_PREFIX, user.getClient(), user.getAccount());
-        if (!redis.exists(key)) {
-            AuthConfigure.Configure configure = authConfigure.getConfigureByClient(client);
-            Set<String> permissions = Optional.ofNullable(xcAuthInterface.selectPermissions(user)).orElse(new HashSet<>());
-            redis.sAddEx(key, configure.getExpires(), TimeUnit.MINUTES, permissions.toArray());
-        }
-        return redis.sIsMember(key, permission);
     }
 }
