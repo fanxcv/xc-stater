@@ -3,6 +3,8 @@ on:
   push:
     branches:
       - 1.8
+    paths:
+      - '**/src/**'
 
 env:
   REGISTRY: harbor.fan-x.fun
@@ -28,3 +30,10 @@ jobs:
         env:
           MAVEN_USERNAME: ${{ secrets.MAVEN_USER }}
           MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
+      - name: Push pom.xml
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add pom.xml
+          git commit -m "update version"
+          git push
