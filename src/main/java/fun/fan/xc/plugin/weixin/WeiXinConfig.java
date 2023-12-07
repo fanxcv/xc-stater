@@ -53,22 +53,6 @@ public class WeiXinConfig {
          * 微信公众号APP Secret
          */
         private String appSecret = Dict.BLANK;
-
-        public boolean isEnable() {
-            return enable;
-        }
-
-        public String getToken() {
-            return token;
-        }
-
-        public String getAppId() {
-            return appId;
-        }
-
-        public String getAppSecret() {
-            return appSecret;
-        }
     }
 
     @Data
@@ -90,22 +74,6 @@ public class WeiXinConfig {
          * 小程序支付相关
          */
         private Pay pay = new Pay();
-
-        public boolean isEnable() {
-            return enable;
-        }
-
-        public String getAppId() {
-            return appId;
-        }
-
-        public String getAppSecret() {
-            return appSecret;
-        }
-
-        public Pay getPay() {
-            return pay;
-        }
     }
 
     @Data
@@ -126,22 +94,6 @@ public class WeiXinConfig {
          * 鉴权用户配置
          */
         private List<Auth> auth;
-
-        public boolean isEnable() {
-            return enable;
-        }
-
-        public String getBasePath() {
-            return basePath;
-        }
-
-        public boolean isEnableAuth() {
-            return enableAuth;
-        }
-
-        public List<Auth> getAuth() {
-            return auth;
-        }
     }
 
     @Data
@@ -154,14 +106,6 @@ public class WeiXinConfig {
          * 认证secret
          */
         private String appSecret;
-
-        public String getAppId() {
-            return appId;
-        }
-
-        public String getAppSecret() {
-            return appSecret;
-        }
     }
 
     @Data
@@ -178,93 +122,41 @@ public class WeiXinConfig {
          * 认证信息
          */
         private Auth auth;
-
-        public boolean isEnable() {
-            return enable;
-        }
-
-        public String getServer() {
-            return server;
-        }
-
-        public Auth getAuth() {
-            return auth;
-        }
     }
 
     @Data
     public static class Pay {
         /**
-         * 微信支付平台证书路径 {@link <a href="https://github.com/wechatpay-apiv3/CertificateDownloader"></a>}
+         * V3-微信支付平台证书路径
+         * @see "https://github.com/wechatpay-apiv3/CertificateDownloader"
          */
         private String wechatPayCertPath;
         /**
-         * 商户证书序列号
+         * V3-商户证书序列号
          */
         private String apiKeySerialNo;
         /**
-         * 商户API私钥路径
+         * V3-商户API私钥路径
          */
         private String apiKeyPath;
         /**
-         * 微信支付API秘钥地址
+         * 微信支付API秘钥地址, 必须
+         * @see "https://pay.weixin.qq.com/docs/merchant/development/development-preparation/download-configure-merchant-certificates.html"
          */
         private String apiCertPath;
         /**
          * 微信支付V2Key
+         * @see "https://pay.weixin.qq.com/docs/merchant/development/development-preparation/api-key-config.html"
          */
         private String apiV2Key;
         /**
-         * 微信支付V3Key
+         * V3-微信支付V3Key
+         * @see "https://pay.weixin.qq.com/docs/merchant/development/development-preparation/api-key-config.html"
          */
         private String apiV3Key;
         /**
          * 商户id
          */
         private String mchId;
-
-        public String getWechatPayCertPath() {
-            return wechatPayCertPath;
-        }
-
-        public String getApiKeySerialNo() {
-            return apiKeySerialNo;
-        }
-
-        public String getApiKeyPath() {
-            return apiKeyPath;
-        }
-
-        public String getApiCertPath() {
-            return apiCertPath;
-        }
-
-        public String getApiV2Key() {
-            return apiV2Key;
-        }
-
-        public String getApiV3Key() {
-            return apiV3Key;
-        }
-
-        public String getMchId() {
-            return mchId;
-        }
-    }
-
-    public Official getOfficial() {
-        return official;
-    }
-
-    public MiniProgram getMiniProgram() {
-        return miniProgram;
-    }
-
-    public Server getServer() {
-        return server;
-    }
-
-    public Client getClient() {
-        return client;
     }
 }
