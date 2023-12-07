@@ -15,13 +15,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.experimental.Accessors;
 
-import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.Optional;
 
 public class PdfTools {
     public static ByteArrayOutputStream addTextOrImage(InputStream inputPDFFile, AddElementInfo... elements)
@@ -43,17 +43,21 @@ public class PdfTools {
                 content.beginText();
                 if (item.type == ElementType.TEXT) {
                     TextElement text = item.text;
+                    String textContent = Optional.ofNullable(text.text).orElse(Dict.BLANK);
+
                     // 字体大小
                     content.setFontAndSize(base, text.fontSize);
+                    content.setCharacterSpacing(1.1f);
                     // content.setTextMatrix(70, 200);
                     // 内容居中，横纵坐标，偏移量
-                    content.showTextAligned(text.align, text.text, item.x, item.y, 0);
+                    content.showTextAligned(text.align, textContent, item.x, item.y, 0);
                 } else if (item.type == ElementType.IMAGE) {
                     ImageElement image = item.image;
                     // 将image对象添加到content中
                     Image img = Objects.nonNull(image.bytes) ? Image.getInstance(image.bytes) : Image.getInstance(image.path);
                     img.setAbsolutePosition(item.x, item.y);
                     img.scaleToFit(image.width, image.height);
+                    img.setRotationDegrees(image.deg);
                     content.addImage(img);
                 }
                 content.endText();
@@ -124,13 +128,13 @@ public class PdfTools {
                 // 联系方式
                 new AddElementInfo(1, 395, 505).setText(new TextElement("13111221111")),
                 // 添加图片
-                new AddElementInfo(1, 195, 505).setImage(new ImageElement("/Users/fan/Downloads/jb.png", 200, 300)),
+                // new AddElementInfo(1, 195, 505).setImage(new ImageElement("/Users/fan/Downloads/1.png", 200, 300)),
         };
         ByteArrayOutputStream os = addTextOrImage(stream, elements);
         // FileUtil.writeBytes(os.toByteArray(), "/Users/fan/Downloads/b.pdf");
         // BufferedImage[] image = toImage(os.toByteArray(), 200);
         // os = ImageTools.mergeImage(image, 1);
-        FileUtil.writeBytes(os.toByteArray(), "/Users/fan/Downloads/b.png");
+        FileUtil.writeBytes(os.toByteArray(), "/Users/fan/Downloads/b.pdf");
     }
 
     public enum ElementType {
@@ -173,10 +177,15 @@ public class PdfTools {
     @Data
     @Accessors(chain = true)
     public static class ImageElement {
-        private final byte[] bytes;
-        private final String path;
         private final int height;
         private final int width;
+
+        private final byte[] bytes;
+        private final String path;
+        /**
+         * 旋转角度
+         */
+        private float deg;
 
         public ImageElement(String path, int width, int height) {
             this.bytes = null;

@@ -5,13 +5,12 @@
 
     <groupId>fun.fan-x</groupId>
     <artifactId>xc-starter</artifactId>
-    <version>${xc.version}</version>
+    <version>1.0.6-SNAPSHOT</version>
 
     <name>xc-starter</name>
     <description>自定义spring boot组件包</description>
 
     <properties>
-        <xc.version>1.0.5-18-SNAPSHOT</xc.version>
         <spring.boot.version>2.7.15</spring.boot.version>
         <guava.version>31.1-jre</guava.version>
         <fastjson2.version>2.0.39</fastjson2.version>
@@ -19,7 +18,7 @@
         <hutool.version>5.8.23</hutool.version>
 
         <java.version>1.8</java.version>
-        <kotlin.version>1.7.22</kotlin.version>
+        <kotlin.version>1.6.21</kotlin.version>
     </properties>
 
     <distributionManagement>
@@ -250,12 +249,24 @@
                     </args>
                     <compilerPlugins>
                         <plugin>spring</plugin>
+                        <plugin>lombok</plugin>
+                        <plugin>no-arg</plugin>
                     </compilerPlugins>
                 </configuration>
                 <dependencies>
                     <dependency>
                         <groupId>org.jetbrains.kotlin</groupId>
                         <artifactId>kotlin-maven-allopen</artifactId>
+                        <version>${kotlin.version}</version>
+                    </dependency>
+                    <dependency>
+                        <groupId>org.jetbrains.kotlin</groupId>
+                        <artifactId>kotlin-maven-noarg</artifactId>
+                        <version>${kotlin.version}</version>
+                    </dependency>
+                    <dependency>
+                        <groupId>org.jetbrains.kotlin</groupId>
+                        <artifactId>kotlin-maven-lombok</artifactId>
                         <version>${kotlin.version}</version>
                     </dependency>
                 </dependencies>

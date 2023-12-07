@@ -51,7 +51,7 @@ public class SpringRedisImpl implements Redis {
     }
 
     @Override
-    public <T> T getOrLoadEx(String key, int time, TimeUnit timeUnit, Supplier<T> load) {
+    public <T> T getOrLoadEx(String key, long time, TimeUnit timeUnit, Supplier<T> load) {
         T value = get(key);
         return Optional.ofNullable(value).orElseGet(() -> {
             T v = load.get();
@@ -68,13 +68,13 @@ public class SpringRedisImpl implements Redis {
     }
 
     @Override
-    public boolean expire(String key, int seconds) {
+    public boolean expire(String key, long seconds) {
         final Boolean expire = xcRedisTemplate.expire(key, seconds, TimeUnit.SECONDS);
         return expire != null && expire;
     }
 
     @Override
-    public boolean expire(String key, int time, TimeUnit timeUnit) {
+    public boolean expire(String key, long time, TimeUnit timeUnit) {
         final Boolean expire = xcRedisTemplate.expire(key, time, timeUnit);
         return expire != null && expire;
     }
@@ -92,13 +92,13 @@ public class SpringRedisImpl implements Redis {
     }
 
     @Override
-    public boolean setEx(String key, Object value, int seconds) {
+    public boolean setEx(String key, Object value, long seconds) {
         xcRedisTemplate.opsForValue().set(key, value, seconds, TimeUnit.SECONDS);
         return true;
     }
 
     @Override
-    public boolean setEx(String key, Object value, int time, TimeUnit timeUnit) {
+    public boolean setEx(String key, Object value, long time, TimeUnit timeUnit) {
         xcRedisTemplate.opsForValue().set(key, value, time, timeUnit);
         return true;
     }

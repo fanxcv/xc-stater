@@ -56,7 +56,7 @@ public class BaseAuthInterceptor implements HandlerInterceptor {
         try {
             // 获取用户信息
             String key = String.format(AuthConstant.USER_PREFIX, client, account);
-            XcBaseUser user = redis.getOrLoadEx(key, configure.getUserCacheExpires(), TimeUnit.MINUTES, () -> xcAuthInterface.select(account));
+            XcBaseUser user = redis.getOrLoadEx(key, configure.getUserCacheExpires().getSeconds(), TimeUnit.SECONDS, () -> xcAuthInterface.select(account));
             Assert.isTrue(xcAuthInterface.checkUser(user), "用户异常");
             AuthLocal.setUser(user);
             authUtil.updateToken(token, client);
@@ -127,7 +127,7 @@ public class BaseAuthInterceptor implements HandlerInterceptor {
         if (!redis.exists(key)) {
             AuthConfigure.Configure configure = authConfigure.getConfigureByClient(client);
             Set<String> permissions = Optional.ofNullable(xcAuthInterface.selectPermissions(user)).orElse(new HashSet<>());
-            redis.sAddEx(key, configure.getExpires(), TimeUnit.MINUTES, permissions.toArray());
+            redis.sAddEx(key, configure.getExpires().getSeconds(), TimeUnit.SECONDS, permissions.toArray());
         }
         return redis.sIsMember(key, permission);
     }

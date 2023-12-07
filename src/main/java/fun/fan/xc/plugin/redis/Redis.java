@@ -47,7 +47,7 @@ public interface Redis {
      * @param load     加载函数
      * @return 值
      */
-    <T> T getOrLoadEx(String key, int time, TimeUnit timeUnit, Supplier<T> load);
+    <T> T getOrLoadEx(String key, long time, TimeUnit timeUnit, Supplier<T> load);
 
     /**
      * 检查给定 key 是否存在
@@ -64,7 +64,7 @@ public interface Redis {
      * @param seconds 过期时间
      * @return 设置成功返回 1 。 当 key 不存在或者不能为 key 设置过期时间时返回 0 。
      */
-    boolean expire(String key, int seconds);
+    boolean expire(String key, long seconds);
 
     /**
      * 为key添加过期时间
@@ -74,7 +74,7 @@ public interface Redis {
      * @param timeUnit 时间单位
      * @return 设置成功返回 1 。 当 key 不存在或者不能为 key 设置过期时间时返回 0 。
      */
-    boolean expire(String key, int time, TimeUnit timeUnit);
+    boolean expire(String key, long time, TimeUnit timeUnit);
 
     /**
      * 以秒为单位，返回给定 key 的剩余生存时间(TTL, time to live)。
@@ -103,7 +103,7 @@ public interface Redis {
      * @param seconds 时间(秒) time要大于0 如果time小于等于0 将设置无限期
      * @return SET 在设置操作成功完成时，才返回 OK
      */
-    boolean setEx(String key, Object value, int seconds);
+    boolean setEx(String key, Object value, long seconds);
 
     /**
      * 普通缓存放入并设置时间
@@ -114,7 +114,7 @@ public interface Redis {
      * @param timeUnit 时间单位
      * @return SET 在设置操作成功完成时，才返回 OK
      */
-    boolean setEx(String key, Object value, int time, TimeUnit timeUnit);
+    boolean setEx(String key, Object value, long time, TimeUnit timeUnit);
 
     /**
      * 如果Key存在,则不设置,不存在的话设置key,并添加过期时间

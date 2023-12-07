@@ -28,6 +28,15 @@ public interface XcAuthInterface {
     }
 
     /**
+     * 通过Token换取account
+     * @param token Token
+     * @return account
+     */
+    default String getAccount(String token) {
+        return null;
+    }
+
+    /**
      * 检查用户的有效性和权限
      *
      * @param user 待校验的用户对象

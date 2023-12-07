@@ -10,6 +10,7 @@ import org.springframework.http.server.ServerHttpResponse
 import org.springframework.http.server.ServletServerHttpResponse
 import org.springframework.web.bind.annotation.ControllerAdvice
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice
+import javax.servlet.http.Cookie
 
 /**
  * @author fan
@@ -32,9 +33,17 @@ class ResponseAdvice : ResponseBodyAdvice<Any> {
             if (body.status != HttpStatus.OK) {
                 response.setStatusCode(body.status)
             }
-            if (body.headers.isNotEmpty() && response is ServletServerHttpResponse) {
-                body.headers.forEach { (k, v) ->
-                    response.servletResponse.addHeader(k, v)
+            if (response is ServletServerHttpResponse) {
+                if (body.headers.isNotEmpty()) {
+                    body.headers.forEach { (k, v) ->
+                        response.servletResponse.addHeader(k, v)
+                    }
+                }
+
+                if (body.cookies.isNotEmpty()) {
+                    body.cookies.forEach { (k, v) ->
+                        response.servletResponse.addCookie(Cookie(k, v))
+                    }
                 }
             }
             if (body.extendData.isNotEmpty()) {

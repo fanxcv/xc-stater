@@ -179,6 +179,21 @@ class ProgramWeiXinApi(
     }
 
     /**
+     * 委托代扣-支付中签约
+     * See https://pay.weixin.qq.com/wiki/doc/api/wxpay_v2/papay/chapter3_5.shtml
+     */
+    fun payContractOrder(order: PayContractOrder): PayContractOrderResp {
+        WeiXinUtils.sign(order, config.miniProgram.pay.apiV2Key)
+        return NetUtils.build(WeiXinDict.WX_API_PAY_CONTRACT_ORDER)
+            .contentType(MediaType.APPLICATION_XML)
+            .body(order)
+            .doPost { it ->
+                val bytes = it.readBytes()
+                NetUtils.XMLMapper.readValue(bytes, PayContractOrderResp::class.java)
+            }
+    }
+
+    /**
      * 委托代扣-申请扣款
      * see https://pay.weixin.qq.com/wiki/doc/api/wxpay_v2/papay/chapter3_8.shtml
      */

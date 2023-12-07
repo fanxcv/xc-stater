@@ -6,6 +6,7 @@ import com.google.common.collect.Maps;
 import fun.fan.xc.starter.enums.ReturnCode;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Data;
 import org.springframework.http.HttpStatus;
 
 import java.util.Map;
@@ -13,7 +14,12 @@ import java.util.Map;
 /**
  * @author fan
  */
+@Data
 public class R<T> {
+    @Hidden
+    @JsonIgnore
+    @JSONField(serialize = false)
+    private final transient Map<String, String> cookies = Maps.newHashMap();
     @Hidden
     @JsonIgnore
     @JSONField(serialize = false)
@@ -106,6 +112,18 @@ public class R<T> {
     }
 
     /**
+     * 添加cookie
+     *
+     * @param key   key
+     * @param value 值
+     * @return 本对象
+     */
+    public R<T> cookie(String key, String value) {
+        this.cookies.put(key, value);
+        return this;
+    }
+
+    /**
      * 添加与code平级的数据, 无法覆盖code,body,message
      *
      * @param key   返回key
@@ -114,29 +132,5 @@ public class R<T> {
     public R<T> set(String key, Object value) {
         this.extendData.put(key, value);
         return this;
-    }
-
-    public T getBody() {
-        return body;
-    }
-
-    public int getCode() {
-        return code;
-    }
-
-    public String getMessage() {
-        return message;
-    }
-
-    public HttpStatus getStatus() {
-        return status;
-    }
-
-    public Map<String, String> getHeaders() {
-        return headers;
-    }
-
-    public Map<String, Object> getExtendData() {
-        return extendData;
     }
 }

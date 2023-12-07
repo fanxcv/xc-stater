@@ -8,7 +8,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 
 /**
  * @author fan
@@ -29,7 +28,8 @@ public class AuthUtil {
         String token = UUID.fastUUID().toString(true);
         String client = Optional.ofNullable(user.getClient()).orElse(AuthConstant.DEFAULT_CLIENT);
         AuthConfigure.Configure configure = authConfigure.getConfigureByClient(client);
-        redis.setEx(AuthConstant.TOKEN_PREFIX + token, user.getAccount(), configure.getExpires(), TimeUnit.MINUTES);
+        redis.setEx(AuthConstant.TOKEN_PREFIX + token, user.getAccount(), configure.getExpires().getSeconds());
+        user.setToken(token);
         // TODO 同时登陆限制
         return token;
     }
@@ -41,7 +41,7 @@ public class AuthUtil {
      */
     public void updateToken(String token, String client) {
         AuthConfigure.Configure configure = authConfigure.getConfigureByClient(client);
-        redis.expire(AuthConstant.TOKEN_PREFIX + token, configure.getExpires(), TimeUnit.MINUTES);
+        redis.expire(AuthConstant.TOKEN_PREFIX + token, configure.getExpires().getSeconds());
     }
 
     /**

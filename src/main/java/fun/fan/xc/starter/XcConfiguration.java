@@ -5,7 +5,6 @@ import com.google.common.collect.Sets;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
@@ -16,7 +15,7 @@ import java.util.Set;
 /**
  * @author fan
  */
-@Setter
+@Data
 @Configuration
 @NoArgsConstructor
 @AllArgsConstructor
@@ -36,7 +35,7 @@ public class XcConfiguration {
      */
     private DroneConfig drone = new DroneConfig();
 
-    @Setter
+    @Data
     public static class CoreConfig {
         /**
          * core拦截路径
@@ -52,10 +51,6 @@ public class XcConfiguration {
          */
         private boolean enable = true;
 
-        public List<String> getPath() {
-            return path;
-        }
-
         public List<String> getExcludePath() {
             return Lists.newArrayList(this.excludePath);
         }
@@ -63,13 +58,9 @@ public class XcConfiguration {
         public void setExcludePath(List<String> excludePath) {
             this.excludePath.addAll(excludePath);
         }
-
-        public boolean isEnable() {
-            return enable;
-        }
     }
 
-    @Setter
+    @Data
     public static class CorsConfig {
         private transient List<String> any = Collections.singletonList("*");
         /**
@@ -88,22 +79,6 @@ public class XcConfiguration {
          * 处理路径路径
          */
         private List<String> path = Lists.newArrayList("/**");
-
-        public List<String> getAllowedOrigins() {
-            return allowedOrigins;
-        }
-
-        public List<String> getAllowedHeaders() {
-            return allowedHeaders;
-        }
-
-        public List<String> getAllowedMethods() {
-            return allowedMethods;
-        }
-
-        public List<String> getPath() {
-            return path;
-        }
     }
 
     @Data
@@ -124,33 +99,5 @@ public class XcConfiguration {
          * Git 密码
          */
         private String gitPassword;
-
-        public String getHost() {
-            return host;
-        }
-
-        public String getToken() {
-            return token;
-        }
-
-        public String getGitUser() {
-            return gitUser;
-        }
-
-        public String getGitPassword() {
-            return gitPassword;
-        }
-    }
-
-    public CoreConfig getCore() {
-        return core;
-    }
-
-    public CorsConfig getCors() {
-        return cors;
-    }
-
-    public DroneConfig getDrone() {
-        return drone;
     }
 }

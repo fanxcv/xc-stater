@@ -44,7 +44,7 @@ open class PayUnifiedOrder : PayBase() {
      */
     @JsonProperty("fee_type")
     @JSONField(name = "fee_type")
-    var feeType: String = "CNY"
+    open var feeType: String? = "CNY"
 
     /**
      * 总金额

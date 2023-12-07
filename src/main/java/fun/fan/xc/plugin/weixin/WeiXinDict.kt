@@ -76,6 +76,11 @@ object WeiXinDict {
     const val WX_API_PAY_REFUND = "$WX_PAY_HOST/secapi/pay/refund"
 
     /**
+     * 委托代扣-支付中签约
+     */
+    const val WX_API_PAY_CONTRACT_ORDER = "$WX_PAY_HOST/pay/contractorder"
+
+    /**
      * 委托代扣-申请扣款
      */
     const val WX_API_PAY_PAP_APPLY = "$WX_PAY_HOST/pay/pappayapply"
