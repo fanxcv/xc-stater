@@ -14,22 +14,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Set up JDK 8
+      - name: Set up Maven Central Repository
         uses: actions/setup-java@v3
         with:
           java-version: '8'
           distribution: 'zulu'
           cache: maven
-      - name: Set up Maven Settings.xml
-        uses: whelk-io/maven-settings-xml-action@v20
-        with:
-          servers: >
-            [
-              {
-                "id": "fan",
-                "username": "${{ secrets.MAVEN_USER }}",
-                "password": "${{ secrets.MAVEN_PASSWORD }}"
-              }
-            ]
-      - name: Build And Deploy
-        run: mvn build-helper:parse-version versions:set -DnewVersion=${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.nextIncrementalVersion}-SNAPSHOT
+          server-id: fan
+          server-username: MAVEN_USERNAME
+          server-password: MAVEN_PASSWORD
+      - name: Publish package
+        run: mvn build-helper:parse-version versions:set -DnewVersion=${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.nextIncrementalVersion}-SNAPSHOT deploy
+        env:
+          MAVEN_USERNAME: ${{ secrets.MAVEN_USER }}
+          MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
