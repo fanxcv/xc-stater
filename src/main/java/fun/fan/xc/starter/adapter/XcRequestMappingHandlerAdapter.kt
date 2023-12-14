@@ -1,6 +1,6 @@
 package `fun`.fan.xc.starter.adapter
 
-import com.fan.xc.boot.starter.handler.InjectEntityHandlerMethodArgumentResolver
+import `fun`.fan.xc.starter.handler.InjectEntityHandlerMethodArgumentResolver
 import `fun`.fan.xc.starter.exception.XcRunException
 import `fun`.fan.xc.starter.handler.EventHandlerMethodArgumentResolver
 import `fun`.fan.xc.starter.handler.VerifyParamHandlerMethodArgumentResolver

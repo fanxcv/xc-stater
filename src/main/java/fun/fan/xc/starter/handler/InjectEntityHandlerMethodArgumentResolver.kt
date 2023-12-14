@@ -1,10 +1,9 @@
-package com.fan.xc.boot.starter.handler
+package `fun`.fan.xc.starter.handler
 
 import com.alibaba.fastjson2.JSONObject
 import `fun`.fan.xc.starter.annotation.InjectEntity
 import `fun`.fan.xc.starter.annotation.VerifyParam
 import `fun`.fan.xc.starter.event.EventImpl
-import `fun`.fan.xc.starter.handler.BaseVerify
 import org.springframework.beans.factory.BeanFactory
 import org.springframework.core.MethodParameter
 import org.springframework.lang.NonNull

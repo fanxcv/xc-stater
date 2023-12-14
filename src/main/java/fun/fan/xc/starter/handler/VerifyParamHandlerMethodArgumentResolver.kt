@@ -1,8 +1,7 @@
-@file:Suppress("JAVA_MODULE_DOES_NOT_EXPORT_PACKAGE")
-
 package `fun`.fan.xc.starter.handler
 
 import com.alibaba.fastjson2.JSONArray
+import com.alibaba.fastjson2.JSONObject
 import `fun`.fan.xc.starter.annotation.VerifyParam
 import `fun`.fan.xc.starter.event.EventImpl
 import `fun`.fan.xc.starter.exception.ParamErrorException
@@ -19,9 +18,7 @@ import org.springframework.web.method.annotation.MethodArgumentConversionNotSupp
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException
 import org.springframework.web.method.support.HandlerMethodArgumentResolver
 import org.springframework.web.method.support.ModelAndViewContainer
-import sun.reflect.generics.reflectiveObjects.ParameterizedTypeImpl
-import java.lang.reflect.ParameterizedType
-import java.util.*
+import java.lang.reflect.Type
 
 /**
  * 注入相关参数
@@ -50,9 +47,7 @@ class VerifyParamHandlerMethodArgumentResolver(beanFactory: BeanFactory) : BaseV
         }
 
         // VerifyParam拥有唯一注入对象，所以name只取第一个值
-        val key: String = Optional.of(name)
-            .map { if (it.isNotEmpty() && StringUtils.hasText(it[0])) it[0] else parameter.parameterName }
-            .get()
+        val key: String = if (StringUtils.hasText(name[0])) name[0] else parameter.parameterName!!
 
         /*校验参数值，并做预处理*/
         var v = check(key, event.getParam(key), verify)
@@ -69,18 +64,12 @@ class VerifyParamHandlerMethodArgumentResolver(beanFactory: BeanFactory) : BaseV
         /*如果值是参数的子类，那就直接返回了*/
         if (clazz.isAssignableFrom(v.javaClass)) {
             // 如果待注入对象为List，并且获取到值也为数组对象
-            if (clazz == MutableList::class.java && v.javaClass == JSONArray::class.java) {
-                val type: ParameterizedType = parameter.genericParameterType as ParameterizedType
-                val nodeType = type.actualTypeArguments[0]
-                // 需要注入list的内部对象
-                val nodeClazz: Class<*> = if (nodeType is ParameterizedTypeImpl) {
-                    nodeType.rawType
-                } else {
-                    nodeType as Class<*>
-                }
-                if (nodeClazz != Any::class.java) {
-                    v = (v as JSONArray).toJavaList(nodeClazz)
-                }
+            if (v.javaClass == JSONArray::class.java) {
+                val type: Type = parameter.genericParameterType
+                v = (v as JSONArray).to(type)
+            } else if (v.javaClass == JSONObject::class.java) {
+                val type: Type = parameter.genericParameterType
+                v = (v as JSONObject).to(type)
             }
             return v
         }

@@ -27,7 +27,7 @@ public class UserHandlerMethodArgumentResolver implements HandlerMethodArgumentR
     }
 
     @Override
-    public Object resolveArgument(@NonNull MethodParameter parameter, ModelAndViewContainer mavContainer, @NonNull NativeWebRequest webRequest, WebDataBinderFactory binderFactory) throws Exception {
+    public Object resolveArgument(@NonNull MethodParameter parameter, ModelAndViewContainer mavContainer, @NonNull NativeWebRequest webRequest, WebDataBinderFactory binderFactory) {
         try {
             MethodParameter nestedIfOptional = parameter.nestedIfOptional();
             AuthUser authUser = nestedIfOptional.getParameterAnnotation(AuthUser.class);
