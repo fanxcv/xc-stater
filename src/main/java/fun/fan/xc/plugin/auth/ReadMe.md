@@ -2,7 +2,7 @@
    ```yaml
    xc:
      auth:
-       default: # 配置名
+       default: # 配置名 
          token-name: M-Token # 请求中携带Token的Header名称
          path: # 需要拦截的路径
            - /**
