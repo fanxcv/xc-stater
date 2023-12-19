@@ -129,6 +129,11 @@ public class BaseAuthInterceptor implements HandlerInterceptor {
             Set<String> permissions = Optional.ofNullable(xcAuthInterface.selectPermissions(user)).orElse(new HashSet<>());
             redis.sAddEx(key, configure.getExpires().getSeconds(), TimeUnit.SECONDS, permissions.toArray());
         }
-        return redis.sIsMember(key, permission);
+        Object[] ps = Arrays.stream(permission).toArray();
+        if (redis.sAnyIsMember(key, ps)) {
+            return true;
+        } else {
+            throw new XcServiceException(ReturnCode.FORBIDDEN);
+        }
     }
 }
