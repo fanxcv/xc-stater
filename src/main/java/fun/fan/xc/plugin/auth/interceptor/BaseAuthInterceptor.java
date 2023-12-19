@@ -111,7 +111,7 @@ public class BaseAuthInterceptor implements HandlerInterceptor {
     }
 
     /**
-     * 校验权限
+     * 校验权限, 如果没有设置权限, 就直接放过
      *
      * @param user       待校验的用户
      * @param permission 需要判断的权限列表
@@ -119,7 +119,7 @@ public class BaseAuthInterceptor implements HandlerInterceptor {
      */
     public boolean checkPermissions(XcBaseUser user, String... permission) {
         if (Objects.isNull(permission) || permission.length == 0) {
-            return false;
+            return true;
         }
         String client = Optional.ofNullable(user.getClient()).orElse(AuthConstant.DEFAULT_CLIENT);
         // 查询用户权限
