@@ -18,7 +18,7 @@ jobs:
           java-version: '8'
           distribution: 'zulu'
           cache: maven
-          cache-dependency-path: ./.gitignore
+          cache-dependency-path: .gitignore
           server-id: fan
           server-username: MAVEN_USERNAME
           server-password: MAVEN_PASSWORD
