@@ -42,7 +42,9 @@ class ResponseAdvice : ResponseBodyAdvice<Any> {
 
                 if (body.cookies.isNotEmpty()) {
                     body.cookies.forEach { (k, v) ->
-                        response.servletResponse.addCookie(Cookie(k, v))
+                        val cookie = Cookie(k, v)
+                        cookie.path = "/"
+                        response.servletResponse.addCookie(cookie)
                     }
                 }
             }
