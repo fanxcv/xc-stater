@@ -25,16 +25,23 @@ public class RedisConfigure {
     @Bean(name = "xcRedisTemplate")
     public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory factory) {
         log.info("===> redis: init XcRedisTemplate");
+        ObjectMapper om = new ObjectMapper();
+        om.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+        om.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
+        // 修改了API, 需要测试
+        om.activateDefaultTyping(om.getPolymorphicTypeValidator(), ObjectMapper.DefaultTyping.NON_FINAL);
+
+        Jackson2JsonRedisSerializer<Object> jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer<>(Object.class);
+        jackson2JsonRedisSerializer.setObjectMapper(om);
+        return init(factory, jackson2JsonRedisSerializer);
+    }
+
+    @Bean(name = "xcRedisSubscriber")
+    public RedisTemplate<String, Object> redisSubscriber(RedisConnectionFactory factory) {
+        log.info("===> redis: init XcRedisSubscriber");
         FastJsonRedisSerializer<Object> fastJsonRedisSerializer = new FastJsonRedisSerializer<>(Object.class);
         return init(factory, fastJsonRedisSerializer);
     }
-
-    // @Bean(name = "xcRedisSubscriber")
-    // public RedisTemplate<String, Object> redisSubscriber(RedisConnectionFactory factory) {
-    //     log.info("===> redis: init XcRedisSubscriber");
-    //     FastJsonRedisSerializer<Object> fastJsonRedisSerializer = new FastJsonRedisSerializer<>(Object.class);
-    //     return init(factory, fastJsonRedisSerializer);
-    // }
 
     private RedisTemplate<String, Object> init(RedisConnectionFactory factory, RedisSerializer<Object> valueSerializer) {
         RedisTemplate<String, Object> template = new RedisTemplate<>();

@@ -25,7 +25,7 @@ import java.util.function.Supplier;
 public class SpringRedisImpl implements Redis {
     private static final Long RELEASE_SUCCESS = 1L;
     private final RedisTemplate<String, Object> xcRedisTemplate;
-    // private final RedisTemplate<String, Object> xcRedisSubscriber;
+    private final RedisTemplate<String, Object> xcRedisSubscriber;
 
     @Override
     public boolean set(String key, Object value) {
@@ -298,7 +298,7 @@ public class SpringRedisImpl implements Redis {
 
     @Override
     public void publish(String channel, Object message) {
-        xcRedisTemplate.convertAndSend(channel, message);
+        xcRedisSubscriber.convertAndSend(channel, message);
     }
 
     @Override
