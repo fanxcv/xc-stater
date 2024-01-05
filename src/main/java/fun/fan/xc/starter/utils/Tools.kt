@@ -2,6 +2,7 @@ package `fun`.fan.xc.starter.utils
 
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import javax.servlet.http.HttpServletRequest
 
 object Tools {
     private val log: Logger = LoggerFactory.getLogger(Tools::class.java)
@@ -38,7 +39,7 @@ object Tools {
      * @return 是否满足
      */
     @JvmStatic
-    fun ipIsInCidr(ip: String?, ipArea: List<String>?): Boolean {
+    fun ipIsInCidr(ip: String?, ipArea: Collection<String>?): Boolean {
         if (ip.isNullOrBlank() || ipArea.isNullOrEmpty()) {
             return false
         }
@@ -101,4 +102,16 @@ object Tools {
 
         return false
     }
+
+    @JvmStatic
+    fun getIpAddress(request: HttpServletRequest): String? {
+        var ip = request.getHeader(Dict.X_FORWARDED_FOR)
+        if (checkIP(ip)) ip = request.getHeader(Dict.PROXY_CLIENT_IP)
+        if (checkIP(ip)) ip = request.getHeader(Dict.WL_PROXY_CLIENT_IP)
+        if (checkIP(ip)) ip = request.getHeader(Dict.HTTP_CLIENT_IP)
+        if (checkIP(ip)) ip = request.getHeader(Dict.HTTP_X_FORWARDED_FOR)
+        if (checkIP(ip)) ip = request.remoteAddr
+        return ip
+    }
+    private fun checkIP(ip: String?): Boolean = ip.isNullOrEmpty() || Dict.UNKNOWN.equals(ip, ignoreCase = true)
 }

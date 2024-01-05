@@ -2,6 +2,8 @@ package `fun`.fan.xc.plugin.weixin.entity
 
 import com.alibaba.fastjson2.annotation.JSONField
 import com.fasterxml.jackson.annotation.JsonProperty
+import lombok.Data
+import lombok.experimental.Accessors
 import java.util.*
 
 /**
@@ -9,6 +11,8 @@ import java.util.*
  * {@see https://developers.weixin.qq.com/doc/offiaccount/Custom_Menus/Creating_Custom-Defined_Menu.html}
  * @author fan
  */
+@Data
+@Accessors(chain = true)
 open class Menu {
     var button: MutableList<Button> = LinkedList<Button>()
 
@@ -16,6 +20,8 @@ open class Menu {
         this.button.add(button)
     }
 
+    @Data
+    @Accessors(chain = true)
     class Button {
         var name: String? = null
         var type: String? = null
@@ -34,6 +40,6 @@ open class Menu {
 
         @JsonProperty("sub_button")
         @JSONField(name = "sub_button")
-        var subButton: Button? = null
+        var subButton: Array<Button>? = null
     }
 }

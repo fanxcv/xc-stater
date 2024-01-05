@@ -43,7 +43,7 @@ open class XcCoreAutoConfiguration : WebMvcRegistrations, WebMvcConfigurer, Appl
 
     override fun addInterceptors(registry: InterceptorRegistry) {
         log.info("===> core: init xc-boot-core in {}, exclude {}", config.path, config.excludePath)
-        registry.addInterceptor(CoreInterceptor())
+        registry.addInterceptor(CoreInterceptor(applicationContext))
             .excludePathPatterns(config.excludePath)
             .order(Ordered.HIGHEST_PRECEDENCE)
             .addPathPatterns(config.path)

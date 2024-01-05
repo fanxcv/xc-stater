@@ -2,12 +2,19 @@ package `fun`.fan.xc.starter.interceptor
 
 import com.alibaba.fastjson2.JSON
 import com.alibaba.fastjson2.JSONReader
+import `fun`.fan.xc.plugin.gateway.XcGatewayHandler
+import `fun`.fan.xc.starter.enums.ReturnCode
 import `fun`.fan.xc.starter.event.EventImpl
 import `fun`.fan.xc.starter.event.EventInner
+import `fun`.fan.xc.starter.exception.XcRunException
+import `fun`.fan.xc.starter.interfaces.XcEventInterface
 import `fun`.fan.xc.starter.utils.Dict
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.NoSuchBeanDefinitionException
+import org.springframework.context.ApplicationContext
 import org.springframework.core.ParameterizedTypeReference
+import org.springframework.core.annotation.AnnotationAwareOrderComparator
 import org.springframework.http.MediaType
 import org.springframework.util.StringUtils
 import org.springframework.web.method.HandlerMethod
@@ -19,15 +26,34 @@ import javax.servlet.http.HttpServletResponse
 /**
  * 核心拦截器, 主要处理请求参数
  */
-class CoreInterceptor : HandlerInterceptor {
+class CoreInterceptor(applicationContext: ApplicationContext) : HandlerInterceptor {
     private val log: Logger = LoggerFactory.getLogger(this::class.java)
     private val type = object : ParameterizedTypeReference<Map<String?, Any?>?>() {}.type
+
+    private val gatewayHandler: Collection<XcGatewayHandler>? = try {
+        val vs = applicationContext.getBeansOfType(XcGatewayHandler::class.java).values.toMutableList()
+        AnnotationAwareOrderComparator.sort(vs)
+        vs
+    } catch (e: Exception) {
+        log.error("no instance of XcGatewayHandler", e)
+        null
+    }
+
+    private val eventInterface: XcEventInterface? = try {
+        applicationContext.getBean(XcEventInterface::class.java)
+    } catch (e: NoSuchBeanDefinitionException) {
+        log.warn("no instance of XcEventInterface, don't init it")
+        null
+    }
 
     override fun preHandle(request: HttpServletRequest, response: HttpServletResponse, handler: Any): Boolean {
         if (handler is HandlerMethod) {
             val event = EventImpl.instance()
             // 解析参数
             getRequestParam(request, event)
+            // 网关拦截器
+            gatewayHandler?.forEach { if (!it.check(handler, request)) throw XcRunException(ReturnCode.FORBIDDEN) }
+
             // 标记该请求有使用XcCore处理
             request.setAttribute(Dict.REQUEST_DEAL_BY_XC_CORE, true)
         }
