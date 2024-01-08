@@ -24,7 +24,6 @@ class RequestWrapperFilter : Filter {
         }
         val contentType: String? = request.contentType
         if (contentType?.contains(MediaType.APPLICATION_JSON_VALUE) == true) {
-            log.debug("use request wrapper")
             val wrapper = BufferedServletRequestWrapper(request)
             return chain.doFilter(wrapper, response)
         }
