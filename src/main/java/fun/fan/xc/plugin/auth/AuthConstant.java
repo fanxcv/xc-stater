@@ -26,4 +26,5 @@ public class AuthConstant {
             "/swagger-ui/**",
             "/webjars/**",
             "/doc.html");
+    public static final String TOKEN = "XC_AUTH_TOKEN_ATTRIBUTE";
 }

@@ -5,6 +5,8 @@ import fun.fan.xc.plugin.redis.Redis;
 import fun.fan.xc.starter.exception.XcToolsException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -77,5 +79,10 @@ public class AuthUtil {
         if (Objects.nonNull(user)) {
             redis.del(String.format(AuthConstant.USER_PREFIX, user.getClient(), user.getAccount()));
         }
+    }
+
+    public String currentToken() {
+        RequestAttributes attributes = RequestContextHolder.currentRequestAttributes();
+        return (String) attributes.getAttribute(AuthConstant.TOKEN,0);
     }
 }
