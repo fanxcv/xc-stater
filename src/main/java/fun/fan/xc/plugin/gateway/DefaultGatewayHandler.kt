@@ -5,6 +5,7 @@ import `fun`.fan.xc.plugin.gateway.chain.AbstractGatewayChain.Companion.builder
 import `fun`.fan.xc.plugin.gateway.chain.IpBlackListCheckChain
 import `fun`.fan.xc.plugin.gateway.chain.IpWhiteListCheckChain
 import `fun`.fan.xc.starter.XcCoreAutoConfiguration
+import jakarta.servlet.http.HttpServletRequest
 import lombok.AllArgsConstructor
 import lombok.Data
 import org.slf4j.Logger
@@ -14,13 +15,11 @@ import org.springframework.beans.factory.BeanFactoryAware
 import org.springframework.beans.factory.InitializingBean
 import org.springframework.boot.autoconfigure.AutoConfigureAfter
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
 import org.springframework.lang.NonNull
 import org.springframework.util.Assert
 import org.springframework.web.method.HandlerMethod
-import javax.servlet.http.HttpServletRequest
 
 /**
  * 默认网关

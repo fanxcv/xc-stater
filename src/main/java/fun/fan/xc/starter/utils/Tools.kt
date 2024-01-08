@@ -2,7 +2,7 @@ package `fun`.fan.xc.starter.utils
 
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import javax.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletRequest
 
 object Tools {
     private val log: Logger = LoggerFactory.getLogger(Tools::class.java)

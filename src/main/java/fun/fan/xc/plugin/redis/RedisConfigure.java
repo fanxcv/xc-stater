@@ -1,6 +1,6 @@
 package fun.fan.xc.plugin.redis;
 
-import com.alibaba.fastjson2.support.spring.data.redis.FastJsonRedisSerializer;
+import com.alibaba.fastjson2.support.spring6.data.redis.FastJsonRedisSerializer;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
@@ -31,8 +31,7 @@ public class RedisConfigure {
         // 修改了API, 需要测试
         om.activateDefaultTyping(om.getPolymorphicTypeValidator(), ObjectMapper.DefaultTyping.NON_FINAL);
 
-        Jackson2JsonRedisSerializer<Object> jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer<>(Object.class);
-        jackson2JsonRedisSerializer.setObjectMapper(om);
+        Jackson2JsonRedisSerializer<Object> jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer<>(om, Object.class);
         return init(factory, jackson2JsonRedisSerializer);
     }
 

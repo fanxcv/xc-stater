@@ -1,7 +1,7 @@
 package fun.fan.xc.starter.interfaces;
 
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * Core 对外暴露接口

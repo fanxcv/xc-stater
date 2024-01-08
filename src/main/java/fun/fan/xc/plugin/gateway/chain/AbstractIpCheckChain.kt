@@ -3,7 +3,7 @@ package `fun`.fan.xc.plugin.gateway.chain
 import `fun`.fan.xc.plugin.gateway.DefaultGatewayHandler
 import `fun`.fan.xc.starter.utils.Dict
 import `fun`.fan.xc.starter.utils.Tools
-import javax.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletRequest
 
 
 /**
