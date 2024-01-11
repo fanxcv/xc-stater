@@ -36,10 +36,9 @@ public class BaseAuthInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull Object handler) {
-        if (!(handler instanceof HandlerMethod)) {
+        if (!(handler instanceof HandlerMethod hm)) {
             return true;
         }
-        HandlerMethod hm = (HandlerMethod) handler;
         // 判断接口是否需要做登录校验
         AuthIgnore authIgnore = hm.getMethodAnnotation(AuthIgnore.class);
         AuthConfigure.Configure configure = xcAuthInterface.getConfigure(authConfigure);
@@ -51,7 +50,7 @@ public class BaseAuthInterceptor implements HandlerInterceptor {
         }
         // 全局缓存Token
         request.setAttribute(AuthConstant.TOKEN, token);
-        String account = redis.get(AuthConstant.TOKEN_PREFIX + token);
+        String account = redis.get(String.format(AuthConstant.TOKEN_PREFIX, client, token));
         if (StrUtil.isBlank(account)) {
             return checkIgnore(authIgnore);
         }

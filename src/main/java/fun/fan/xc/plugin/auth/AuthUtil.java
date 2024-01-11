@@ -1,5 +1,6 @@
 package fun.fan.xc.plugin.auth;
 
+import cn.hutool.core.lang.Assert;
 import cn.hutool.core.lang.UUID;
 import fun.fan.xc.plugin.redis.Redis;
 import fun.fan.xc.starter.exception.XcToolsException;
@@ -30,7 +31,7 @@ public class AuthUtil {
         String token = UUID.fastUUID().toString(true);
         String client = Optional.ofNullable(user.getClient()).orElse(AuthConstant.DEFAULT_CLIENT);
         AuthConfigure.Configure configure = authConfigure.getConfigureByClient(client);
-        redis.setEx(AuthConstant.TOKEN_PREFIX + token, user.getAccount(), configure.getExpires().getSeconds());
+        redis.setEx(String.format(AuthConstant.TOKEN_PREFIX, client, token), user.getAccount(), configure.getExpires().getSeconds());
         user.setToken(token);
         // TODO 同时登陆限制
         return token;
@@ -43,7 +44,7 @@ public class AuthUtil {
      */
     public void updateToken(String token, String client) {
         AuthConfigure.Configure configure = authConfigure.getConfigureByClient(client);
-        redis.expire(AuthConstant.TOKEN_PREFIX + token, configure.getExpires().getSeconds());
+        redis.expire(String.format(AuthConstant.TOKEN_PREFIX, client, token), configure.getExpires().getSeconds());
     }
 
     /**
@@ -53,8 +54,9 @@ public class AuthUtil {
      */
     public boolean removeToken(String token) {
         XcBaseUser user = AuthLocal.getUser();
-        String key = AuthConstant.TOKEN_PREFIX + token;
-        if (Objects.nonNull(user) && user.getAccount().equals(redis.get(key))) {
+        Assert.notNull(user, "Token关联的用户信息异常");
+        String key = String.format(AuthConstant.TOKEN_PREFIX, user.getClient(), token);
+        if (user.getAccount().equals(redis.get(key))) {
             // 移除缓存的用户信息
             redis.del(String.format(AuthConstant.USER_PREFIX, user.getClient(), user.getAccount()));
             return redis.del(key) > 0L;
@@ -83,6 +85,6 @@ public class AuthUtil {
 
     public String currentToken() {
         RequestAttributes attributes = RequestContextHolder.currentRequestAttributes();
-        return (String) attributes.getAttribute(AuthConstant.TOKEN,0);
+        return (String) attributes.getAttribute(AuthConstant.TOKEN, 0);
     }
 }

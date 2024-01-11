@@ -238,9 +238,7 @@ object NetUtils {
                 throw XcToolsException("请求url不能为空")
             }
 
-            if (body != null) {
-                log.warn("params will be ignored, because body is not null")
-            } else {
+            if (body == null) {
                 body = params
             }
 
