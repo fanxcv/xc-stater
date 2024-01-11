@@ -51,7 +51,7 @@ public class BaseAuthInterceptor implements HandlerInterceptor {
         }
         // 全局缓存Token
         request.setAttribute(AuthConstant.TOKEN, token);
-        String account = redis.get(AuthConstant.TOKEN_PREFIX + token);
+        String account = redis.get(String.format(AuthConstant.TOKEN_PREFIX, client, token));
         if (StrUtil.isBlank(account)) {
             return checkIgnore(authIgnore);
         }
