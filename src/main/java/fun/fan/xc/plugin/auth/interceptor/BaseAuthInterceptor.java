@@ -58,7 +58,12 @@ public class BaseAuthInterceptor implements HandlerInterceptor {
         try {
             // 获取用户信息
             String key = String.format(AuthConstant.USER_PREFIX, client, account);
-            XcBaseUser user = redis.getOrLoadEx(key, configure.getUserCacheExpires().getSeconds(), TimeUnit.SECONDS, () -> xcAuthInterface.select(account));
+            XcBaseUser user;
+            if (configure.isUserCache()) {
+                user = redis.getOrLoadEx(key, configure.getUserCacheExpires().getSeconds(), TimeUnit.SECONDS, () -> xcAuthInterface.select(account));
+            } else {
+                user = xcAuthInterface.select(account);
+            }
             Assert.isTrue(xcAuthInterface.checkUser(user), "用户异常");
             AuthLocal.setUser(user);
             authUtil.updateToken(token, client);

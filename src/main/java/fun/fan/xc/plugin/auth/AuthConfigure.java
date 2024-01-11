@@ -18,13 +18,13 @@ import java.util.Set;
 @Data
 @ConfigurationProperties("xc")
 public class AuthConfigure {
-    private Map<String, Configure> auth;
+    private Map<String, Configure> authentication;
 
     /**
      * 不同端获取相应的配置
      */
     public Configure getConfigureByClient(String client) {
-        return Optional.ofNullable(auth.get(client)).orElseThrow(() -> new XcServiceException("未找到配置"));
+        return Optional.ofNullable(authentication.get(client)).orElseThrow(() -> new XcServiceException("未找到配置"));
     }
 
     @Data
@@ -53,5 +53,9 @@ public class AuthConfigure {
          * 同时允许在线用户数, 0为不限制
          */
         private int allowedOnline = 0;
+        /**
+         * 是否使用redis缓存用户信息
+         */
+        private boolean userCache = true;
     }
 }
