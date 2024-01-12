@@ -39,12 +39,12 @@ class CoreInterceptor(applicationContext: ApplicationContext) : HandlerIntercept
         null
     }
 
-    private val eventInterface: XcEventInterface? = try {
-        applicationContext.getBean(XcEventInterface::class.java)
-    } catch (e: NoSuchBeanDefinitionException) {
-        log.warn("no instance of XcEventInterface, don't init it")
-        null
-    }
+    // private val eventInterface: XcEventInterface? = try {
+    //     applicationContext.getBean(XcEventInterface::class.java)
+    // } catch (e: NoSuchBeanDefinitionException) {
+    //     log.warn("no instance of XcEventInterface, don't init it")
+    //     null
+    // }
 
     override fun preHandle(request: HttpServletRequest, response: HttpServletResponse, handler: Any): Boolean {
         if (handler is HandlerMethod) {
@@ -99,10 +99,14 @@ class CoreInterceptor(applicationContext: ApplicationContext) : HandlerIntercept
                 type, JSONReader.Feature.UseBigDecimalForDoubles
             )
             input.putParamAll(map)
-        } else if (contentType.contains(MediaType.APPLICATION_XML_VALUE)) { // 处理xml数据
-            log.warn("not support xml parse")
-            // Map<String, String> map = XmlTools.xml2Map(line);
-            // input.putParamAll(map);
         }
+        // else if (
+        //     contentType.contains(MediaType.APPLICATION_XML_VALUE) ||
+        //     contentType.contains(MediaType.TEXT_XML_VALUE)
+        // ) { // 处理xml数据
+        //     log.warn("not support xml parse")
+        //     // Map<String, String> map = XmlTools.xml2Map(line);
+        //     // input.putParamAll(map);
+        // }
     }
 }

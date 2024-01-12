@@ -26,8 +26,8 @@ class ProgramWeiXinApiClient(private val config: WeiXinConfig) : WeiXinApiClient
     private val c = config.client
 
     override fun accessToken(): String = NetUtils.build("${config.client.server}/program/accessToken")
-        .addHeader(WeiXinInterceptor.APP_SECRET, c.auth.appSecret)
-        .addHeader(WeiXinInterceptor.APP_ID, c.auth.appId)
+        .addHeader(WeiXinInterceptor.APP_SECRET, c.authentication.appSecret)
+        .addHeader(WeiXinInterceptor.APP_ID, c.authentication.appId)
         .doGet()
 
     override fun afterPropertiesSet() {

@@ -21,13 +21,13 @@ class OfficialWeiXinApiClient(private val config: WeiXinConfig) : WeiXinApiClien
     private val c = config.client
 
     override fun accessToken(): String = NetUtils.build("${config.client.server}/official/accessToken")
-        .addHeader(WeiXinInterceptor.APP_SECRET, c.auth.appSecret)
-        .addHeader(WeiXinInterceptor.APP_ID, c.auth.appId)
+        .addHeader(WeiXinInterceptor.APP_SECRET, c.authentication.appSecret)
+        .addHeader(WeiXinInterceptor.APP_ID, c.authentication.appId)
         .doGet()
 
     override fun jsTicket(): String = NetUtils.build("${config.client.server}/official/jsTicket")
-        .addHeader(WeiXinInterceptor.APP_SECRET, c.auth.appSecret)
-        .addHeader(WeiXinInterceptor.APP_ID, c.auth.appId)
+        .addHeader(WeiXinInterceptor.APP_SECRET, c.authentication.appSecret)
+        .addHeader(WeiXinInterceptor.APP_ID, c.authentication.appId)
         .doGet()
 
     override fun afterPropertiesSet() {

@@ -93,19 +93,7 @@ public class WeiXinConfig {
         /**
          * 鉴权用户配置
          */
-        private List<Auth> auth;
-    }
-
-    @Data
-    public static class Auth {
-        /**
-         * 认证id
-         */
-        private String appId;
-        /**
-         * 认证secret
-         */
-        private String appSecret;
+        private List<Auth> authentication;
     }
 
     @Data
@@ -121,7 +109,19 @@ public class WeiXinConfig {
         /**
          * 认证信息
          */
-        private Auth auth;
+        private Auth authentication;
+    }
+
+    @Data
+    public static class Auth {
+        /**
+         * 认证id
+         */
+        private String appId;
+        /**
+         * 认证secret
+         */
+        private String appSecret;
     }
 
     @Data

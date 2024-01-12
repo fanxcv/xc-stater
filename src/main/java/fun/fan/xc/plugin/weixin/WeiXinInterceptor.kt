@@ -44,6 +44,6 @@ class WeiXinInterceptor(private val config: WeiXinConfig) : HandlerInterceptor, 
     }
 
     override fun afterPropertiesSet() {
-        config.server.auth.forEach { cache.add("${it.appId}:${it.appSecret}") }
+        config.server.authentication.forEach { cache.add("${it.appId}:${it.appSecret}") }
     }
 }
