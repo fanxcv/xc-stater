@@ -21,7 +21,7 @@ abstract class AbstractIpCheckChain : AbstractGatewayChain<DefaultGatewayHandler
         return when {
             ips.size == 1 -> ips[0]
             ips.size > 1 -> {
-                for (i in ips.size downTo 1) {
+                for (i in ips.size - 1 downTo  1) {
                     if (!Tools.isInnerIp(ips[i])) {
                         return ips[i]
                     }
