@@ -2,7 +2,7 @@ package `fun`.fan.xc.plugin.weixin.official
 
 import `fun`.fan.xc.plugin.weixin.AbstractTokenManager
 import `fun`.fan.xc.plugin.weixin.WeiXinDict
-import `fun`.fan.xc.starter.exception.XcRunException
+import `fun`.fan.xc.starter.exception.XcServiceException
 import `fun`.fan.xc.starter.utils.NetUtils
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Lazy
@@ -19,7 +19,7 @@ class OfficialJsApiTicketManager(
 
     override fun token(): String {
         checkTokenUpdate(jsApiTicket)
-        return jsApiTicket.token ?: throw XcRunException("get WeiXin jsApiTicket fail")
+        return jsApiTicket.token ?: throw XcServiceException("get WeiXin jsApiTicket fail")
     }
 
     override fun expires(): Long {

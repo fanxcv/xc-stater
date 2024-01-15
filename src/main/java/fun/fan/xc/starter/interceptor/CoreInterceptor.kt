@@ -6,7 +6,7 @@ import `fun`.fan.xc.plugin.gateway.XcGatewayHandler
 import `fun`.fan.xc.starter.enums.ReturnCode
 import `fun`.fan.xc.starter.event.EventImpl
 import `fun`.fan.xc.starter.event.EventInner
-import `fun`.fan.xc.starter.exception.XcRunException
+import `fun`.fan.xc.starter.exception.XcServiceException
 import `fun`.fan.xc.starter.utils.Dict
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -50,7 +50,7 @@ class CoreInterceptor(applicationContext: ApplicationContext) : HandlerIntercept
             // 解析参数
             getRequestParam(request, event)
             // 网关拦截器
-            gatewayHandler?.forEach { if (!it.check(handler, request)) throw XcRunException(ReturnCode.FORBIDDEN) }
+            gatewayHandler?.forEach { if (!it.check(handler, request)) throw XcServiceException(ReturnCode.FORBIDDEN) }
 
             // 标记该请求有使用XcCore处理
             request.setAttribute(Dict.REQUEST_DEAL_BY_XC_CORE, true)

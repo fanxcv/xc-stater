@@ -9,8 +9,7 @@ import `fun`.fan.xc.plugin.weixin.WeiXinConfig
 import `fun`.fan.xc.plugin.weixin.WeiXinDict
 import `fun`.fan.xc.plugin.weixin.WeiXinUtils
 import `fun`.fan.xc.plugin.weixin.entity.*
-import `fun`.fan.xc.starter.exception.XcRunException
-import `fun`.fan.xc.starter.exception.XcToolsException
+import `fun`.fan.xc.starter.exception.XcServiceException
 import `fun`.fan.xc.starter.utils.BeanUtils
 import `fun`.fan.xc.starter.utils.NetUtils
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -86,7 +85,7 @@ class ProgramWeiXinApi(
                 val resp: WXBaseResp = JSON.parseObject(bytes, WXBaseResp::class.java)
                 if (resp.errcode != null && resp.errcode != 0) {
                     log.debug("subscribe send result: {}", String(bytes, StandardCharsets.UTF_8))
-                    throw XcRunException(resp.errcode ?: -999999, "${resp.errcode}: ${resp.errmsg}")
+                    throw XcServiceException(resp.errcode ?: -999999, "${resp.errcode}: ${resp.errmsg}")
                 } else {
                     true
                 }
@@ -114,11 +113,11 @@ class ProgramWeiXinApi(
         val resp: PayUnifiedOrderResp = payUnifiedOrder(order)
 
         if (resp.returnCode != WeiXinDict.WX_SUCCESS) {
-            throw XcRunException("微信支付统一下单失败: ${resp.returnMsg}")
+            throw XcServiceException("微信支付统一下单失败: ${resp.returnMsg}")
         }
 
         if (resp.resultCode != WeiXinDict.WX_SUCCESS) {
-            throw XcRunException("微信支付统一下单失败: ${resp.errCode} ${resp.errCodeDes}")
+            throw XcServiceException("微信支付统一下单失败: ${resp.errCode} ${resp.errCodeDes}")
         }
 
         val res = PayOrder()
@@ -153,7 +152,7 @@ class ProgramWeiXinApi(
             .body(fund)
             .beforeRequest {
                 if (it.url.protocol != "https") {
-                    throw XcRunException("微信退款接口必须使用 https 协议")
+                    throw XcServiceException("微信退款接口必须使用 https 协议")
                 }
                 (it as HttpsURLConnection).sslSocketFactory = wxSslSocketFactory
             }
@@ -204,7 +203,7 @@ class ProgramWeiXinApi(
             .body(apply)
             .beforeRequest {
                 if (it.url.protocol != "https") {
-                    throw XcRunException("微信退款接口必须使用 https 协议")
+                    throw XcServiceException("微信退款接口必须使用 https 协议")
                 }
                 (it as HttpsURLConnection).sslSocketFactory = wxSslSocketFactory
             }
@@ -240,7 +239,7 @@ class ProgramWeiXinApi(
             .body(v)
             .beforeRequest {
                 if (it.url.protocol != "https") {
-                    throw XcRunException("微信退款接口必须使用 https 协议")
+                    throw XcServiceException("微信退款接口必须使用 https 协议")
                 }
                 (it as HttpsURLConnection).sslSocketFactory = wxSslSocketFactory
             }
@@ -275,7 +274,7 @@ class ProgramWeiXinApi(
                 val available = `is`.available()
                 if (available < 256) {
                     val msg = BufferedReader(InputStreamReader(`is`)).use(BufferedReader::readText)
-                    throw XcToolsException("request QRCode failed, message: $msg")
+                    throw XcServiceException("request QRCode failed, message: $msg")
                 }
                 Base64.encode(`is`)
             }

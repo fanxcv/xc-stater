@@ -4,7 +4,7 @@ import fun.fan.xc.plugin.auth.AuthLocal;
 import fun.fan.xc.plugin.auth.XcBaseUser;
 import fun.fan.xc.plugin.auth.annotation.AuthUser;
 import fun.fan.xc.starter.enums.ReturnCode;
-import fun.fan.xc.starter.exception.XcRunException;
+import fun.fan.xc.starter.exception.XcServiceException;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.MethodParameter;
@@ -38,8 +38,7 @@ public class UserHandlerMethodArgumentResolver implements HandlerMethodArgumentR
             }
             return user;
         } catch (IllegalArgumentException e) {
-            log.error(e.getMessage(), e);
-            throw new XcRunException(ReturnCode.UNAUTHORIZED);
+            throw new XcServiceException(ReturnCode.UNAUTHORIZED);
         }
     }
 }

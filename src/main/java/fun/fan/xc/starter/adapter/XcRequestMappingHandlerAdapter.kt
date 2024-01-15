@@ -1,8 +1,8 @@
 package `fun`.fan.xc.starter.adapter
 
-import `fun`.fan.xc.starter.handler.InjectEntityHandlerMethodArgumentResolver
-import `fun`.fan.xc.starter.exception.XcRunException
+import `fun`.fan.xc.starter.exception.XcServiceException
 import `fun`.fan.xc.starter.handler.EventHandlerMethodArgumentResolver
+import `fun`.fan.xc.starter.handler.InjectEntityHandlerMethodArgumentResolver
 import `fun`.fan.xc.starter.handler.VerifyParamHandlerMethodArgumentResolver
 import `fun`.fan.xc.starter.interfaces.XcHandlerMethodArgumentResolver
 import org.springframework.lang.NonNull
@@ -24,14 +24,14 @@ class XcRequestMappingHandlerAdapter : RequestMappingHandlerAdapter() {
         val initBinderArgumentResolvers = initBinderArgumentResolvers
 
         if (argumentResolvers == null) {
-            throw XcRunException("argumentResolvers is null")
+            throw XcServiceException("argumentResolvers is null")
         } else {
             val resolvers = addCustomerArgumentResolvers(argumentResolvers, xcArgumentResolvers)
             setArgumentResolvers(resolvers)
         }
 
         if (initBinderArgumentResolvers == null) {
-            throw XcRunException("initBinderArgumentResolvers is null")
+            throw XcServiceException("initBinderArgumentResolvers is null")
         } else {
             val resolvers = addCustomerArgumentResolvers(initBinderArgumentResolvers, xcArgumentResolvers)
             setInitBinderArgumentResolvers(resolvers)

@@ -6,7 +6,7 @@ import `fun`.fan.xc.plugin.weixin.BaseWeiXinApi
 import `fun`.fan.xc.plugin.weixin.WeiXinConfig
 import `fun`.fan.xc.plugin.weixin.WeiXinDict
 import `fun`.fan.xc.plugin.weixin.entity.*
-import `fun`.fan.xc.starter.exception.XcRunException
+import `fun`.fan.xc.starter.exception.XcServiceException
 import `fun`.fan.xc.starter.utils.Dict
 import `fun`.fan.xc.starter.utils.EncryptUtils
 import `fun`.fan.xc.starter.utils.NetUtils
@@ -130,7 +130,7 @@ class OfficialWeiXinApi(
                     JSON.parseObject(bytes, WXBaseResp::class.java, JSONReader.Feature.UseBigDecimalForDoubles)
                 if (resp.errcode != null && resp.errcode != 0) {
                     log.debug("custom send result: {}", String(bytes, StandardCharsets.UTF_8))
-                    throw XcRunException(resp.errcode ?: -999999, "${resp.errcode}: ${resp.errmsg}")
+                    throw XcServiceException(resp.errcode ?: -999999, "${resp.errcode}: ${resp.errmsg}")
                 } else {
                     true
                 }
@@ -149,7 +149,7 @@ class OfficialWeiXinApi(
                     JSON.parseObject(bytes, TemplateResp::class.java, JSONReader.Feature.UseBigDecimalForDoubles)
                 if (resp.errcode != null && resp.errcode != 0) {
                     log.debug("template send result: {}", String(bytes, StandardCharsets.UTF_8))
-                    throw XcRunException(resp.errcode ?: -999999, "${resp.errcode}: ${resp.errmsg}")
+                    throw XcServiceException(resp.errcode ?: -999999, "${resp.errcode}: ${resp.errmsg}")
                 } else {
                     true
                 }
@@ -177,7 +177,7 @@ class OfficialWeiXinApi(
                     JSON.parseObject(bytes, MediaUploadResp::class.java, JSONReader.Feature.UseBigDecimalForDoubles)
                 if (resp.errcode != null && resp.errcode != 0) {
                     log.debug("media upload result: {}", String(bytes, StandardCharsets.UTF_8))
-                    throw XcRunException(resp.errcode ?: -999999, "${resp.errcode}: ${resp.errmsg}")
+                    throw XcServiceException(resp.errcode ?: -999999, "${resp.errcode}: ${resp.errmsg}")
                 } else {
                     resp
                 }
@@ -198,7 +198,7 @@ class OfficialWeiXinApi(
     /**
      * 创建微信公众号菜单
      */
-    fun createMenu(menu: Menu):WXBaseResp {
+    fun createMenu(menu: Menu): WXBaseResp {
         return NetUtils.build(WeiXinDict.WX_MENU_CREATE.format(accessTokenManager.token()))
             .body(menu)
             .doPost(WXBaseResp::class.java)

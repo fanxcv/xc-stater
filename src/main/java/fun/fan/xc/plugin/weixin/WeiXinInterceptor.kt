@@ -2,7 +2,7 @@ package `fun`.fan.xc.plugin.weixin
 
 import com.google.common.collect.Sets
 import `fun`.fan.xc.starter.enums.ReturnCode
-import `fun`.fan.xc.starter.exception.XcRunException
+import `fun`.fan.xc.starter.exception.XcServiceException
 import org.apache.commons.lang3.StringUtils
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -30,7 +30,7 @@ class WeiXinInterceptor(private val config: WeiXinConfig) : HandlerInterceptor, 
         return if (StringUtils.isNoneBlank(appId, appSecret) && cache.contains("$appId:$appSecret")) {
             true
         } else {
-            throw XcRunException(ReturnCode.FORBIDDEN)
+            throw XcServiceException(ReturnCode.FORBIDDEN)
         }
     }
 

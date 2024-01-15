@@ -3,7 +3,8 @@ package `fun`.fan.xc.plugin.weixin.official
 import `fun`.fan.xc.plugin.weixin.WeiXinConfig
 import `fun`.fan.xc.plugin.weixin.WeiXinDict
 import `fun`.fan.xc.plugin.weixin.WeixinServerEnable
-import `fun`.fan.xc.starter.exception.BussinessException
+import `fun`.fan.xc.starter.enums.ReturnCode
+import `fun`.fan.xc.starter.exception.XcServiceException
 import `fun`.fan.xc.starter.out.R
 import org.apache.commons.lang3.StringUtils
 import org.slf4j.Logger
@@ -39,7 +40,7 @@ class OfficialWeiXinApiController(
         @RequestParam @NotBlank signature: String
     ): String {
         val res = weiXinApi.checkSignature(nonce, timestamp, signature, echostr)
-        return if (res == echostr) res else throw BussinessException()
+        return if (res == echostr) res else throw XcServiceException(ReturnCode.FAIL)
     }
 
     /**

@@ -2,7 +2,7 @@ package `fun`.fan.xc.plugin.baidu.cloud
 
 import com.alibaba.fastjson2.JSONObject
 import `fun`.fan.xc.plugin.baidu.BaiduConfig
-import `fun`.fan.xc.starter.exception.XcRunException
+import `fun`.fan.xc.starter.exception.XcServiceException
 import `fun`.fan.xc.starter.utils.NetUtils
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -35,7 +35,7 @@ class BaiduCloudTokenManager(private val config: BaiduConfig) {
 
     fun token(): String {
         checkTokenUpdate(accessToken)
-        return accessToken.token ?: throw XcRunException("Baidu Cloud: get accessToken fail")
+        return accessToken.token ?: throw XcServiceException("Baidu Cloud: get accessToken fail")
     }
 
     fun expires(): Long {

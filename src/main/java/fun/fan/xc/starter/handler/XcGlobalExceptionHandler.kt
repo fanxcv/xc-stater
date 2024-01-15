@@ -2,6 +2,7 @@ package `fun`.fan.xc.starter.handler
 
 import `fun`.fan.xc.starter.enums.ReturnCode
 import `fun`.fan.xc.starter.exception.XcRunException
+import `fun`.fan.xc.starter.exception.XcServiceException
 import `fun`.fan.xc.starter.out.R
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -20,14 +21,17 @@ import javax.validation.ConstraintViolationException
 class XcGlobalExceptionHandler {
     private val log: Logger = LoggerFactory.getLogger(XcGlobalExceptionHandler::class.java)
 
+    @Order(-1)
+    @ExceptionHandler(value = [XcServiceException::class])
+    fun xcServiceExceptionHandler(e: XcServiceException, request: HttpServletRequest): Any {
+        log.error("${request.requestURI} - 业务异常: ${e.code}: ${e.message}")
+        return R.fail<Any>(e.code, e.message).status(e.status)
+    }
+
     @Order(0)
     @ExceptionHandler(value = [XcRunException::class])
     fun xcRunExceptionHandler(e: XcRunException, request: HttpServletRequest): Any {
-        if (e.code == ReturnCode.UNAUTHORIZED.code()) {
-            log.error("${request.requestURI} - ${e.code}: ${e.message}")
-        } else {
-            log.error("${request.requestURI} - ${e.code}: ${e.message}", e)
-        }
+        log.error("${request.requestURI} - ${e.code}: ${e.message}", e)
         return R.fail<Any>(e.code, e.message).status(e.status)
     }
 
@@ -38,7 +42,8 @@ class XcGlobalExceptionHandler {
             MethodArgumentNotValidException::class,
             HttpMessageNotReadableException::class,
             MissingServletRequestParameterException::class,
-            MissingPathVariableException::class]
+            MissingPathVariableException::class
+        ]
     )
     fun notValidExceptionHandler(e: Exception, request: HttpServletRequest): Any {
         log.error("${request.requestURI} - 参数错误", e)
@@ -64,7 +69,7 @@ class XcGlobalExceptionHandler {
     @Order(0)
     @ExceptionHandler(value = [IllegalArgumentException::class])
     fun illegalArgumentExceptionHandler(e: Exception, request: HttpServletRequest): Any {
-        log.error("${request.requestURI} - 业务异常: ${e.message}", e)
+        log.error("${request.requestURI} - 业务异常: ${e.message}")
         return R.fail<Any>(ReturnCode.SYSTEM_ERROR).message(e.message)
     }
 

@@ -1,6 +1,6 @@
 package `fun`.fan.xc.plugin.weixin
 
-import `fun`.fan.xc.starter.exception.XcRunException
+import `fun`.fan.xc.starter.exception.XcServiceException
 import `fun`.fan.xc.starter.utils.NetUtils
 
 abstract class BaseAccessTokenManager(
@@ -13,7 +13,7 @@ abstract class BaseAccessTokenManager(
 
     override fun token(): String {
         checkTokenUpdate(accessToken)
-        return accessToken.token ?: throw XcRunException("${logName()} get WeiXin accessToken fail")
+        return accessToken.token ?: throw XcServiceException("${logName()} get WeiXin accessToken fail")
     }
 
     override fun expires(): Long {

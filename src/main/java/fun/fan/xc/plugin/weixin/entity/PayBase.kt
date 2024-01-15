@@ -3,7 +3,7 @@ package `fun`.fan.xc.plugin.weixin.entity
 import cn.hutool.core.lang.UUID
 import com.alibaba.fastjson2.annotation.JSONField
 import com.fasterxml.jackson.annotation.JsonProperty
-import `fun`.fan.xc.starter.exception.XcRunException
+import `fun`.fan.xc.starter.exception.XcServiceException
 
 open class PayBase {
     /**
@@ -38,7 +38,7 @@ open class PayBase {
     open var signType: SignType? = SignType.MD5
         set(value) {
             if (value != null && value != SignType.MD5) {
-                throw XcRunException("不支持的签名类型")
+                throw XcServiceException("不支持的签名类型")
             }
             field = value
         }
