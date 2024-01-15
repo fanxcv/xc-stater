@@ -23,7 +23,11 @@ class XcGlobalExceptionHandler {
     @Order(0)
     @ExceptionHandler(value = [XcRunException::class])
     fun xcRunExceptionHandler(e: XcRunException, request: HttpServletRequest): Any {
-        log.error("${request.requestURI} - ${e.code}: ${e.message}", e)
+        if (e.code == ReturnCode.UNAUTHORIZED.code()) {
+            log.error("${request.requestURI} - ${e.code}: ${e.message}")
+        } else {
+            log.error("${request.requestURI} - ${e.code}: ${e.message}", e)
+        }
         return R.fail<Any>(e.code, e.message).status(e.status)
     }
 
@@ -46,7 +50,7 @@ class XcGlobalExceptionHandler {
 
             is MethodArgumentNotValidException -> {
                 val errors = e.bindingResult.fieldErrors
-                val messages = errors.map {"[${it.field}]: ${it.defaultMessage}"}
+                val messages = errors.map { "[${it.field}]: ${it.defaultMessage}" }
                 res.message(messages.joinToString("\n"))
             }
 

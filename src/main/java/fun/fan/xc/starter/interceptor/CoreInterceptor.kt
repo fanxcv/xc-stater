@@ -7,11 +7,9 @@ import `fun`.fan.xc.starter.enums.ReturnCode
 import `fun`.fan.xc.starter.event.EventImpl
 import `fun`.fan.xc.starter.event.EventInner
 import `fun`.fan.xc.starter.exception.XcRunException
-import `fun`.fan.xc.starter.interfaces.XcEventInterface
 import `fun`.fan.xc.starter.utils.Dict
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.NoSuchBeanDefinitionException
 import org.springframework.context.ApplicationContext
 import org.springframework.core.ParameterizedTypeReference
 import org.springframework.core.annotation.AnnotationAwareOrderComparator

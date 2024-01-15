@@ -29,11 +29,12 @@ public interface XcAuthInterface {
 
     /**
      * 通过Token换取account
-     * @param token Token
+     *
+     * @param token  Token
      * @return account
      */
     default String getAccount(String token) {
-        return null;
+        return AuthConstant.redis.get(String.format(AuthConstant.TOKEN_PREFIX, client(), token));
     }
 
     /**
