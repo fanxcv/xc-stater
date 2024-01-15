@@ -2,9 +2,6 @@ package fun.fan.xc.plugin.auth;
 
 import com.google.common.collect.Lists;
 import fun.fan.xc.plugin.redis.Redis;
-import org.springframework.beans.BeansException;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationContextAware;
 
 import java.util.List;
 
@@ -13,7 +10,7 @@ import java.util.List;
  *
  * @author fan
  */
-public class AuthConstant implements ApplicationContextAware {
+public class AuthConstant {
     /**
      * 用户缓存前缀
      */
@@ -32,9 +29,4 @@ public class AuthConstant implements ApplicationContextAware {
             "/doc.html");
     public static final String TOKEN = "XC_AUTH_TOKEN_ATTRIBUTE";
     static Redis redis;
-
-    @Override
-    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
-        AuthConstant.redis = applicationContext.getBean(Redis.class);
-    }
 }

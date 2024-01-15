@@ -6,6 +6,9 @@ import fun.fan.xc.plugin.redis.Redis;
 import fun.fan.xc.starter.exception.XcToolsException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeansException;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 
@@ -17,7 +20,7 @@ import java.util.Optional;
  */
 @Slf4j
 @RequiredArgsConstructor
-public class AuthUtil {
+public class AuthUtil implements ApplicationContextAware {
     private final Redis redis;
     private final AuthConfigure authConfigure;
 
@@ -86,5 +89,10 @@ public class AuthUtil {
     public String currentToken() {
         RequestAttributes attributes = RequestContextHolder.currentRequestAttributes();
         return (String) attributes.getAttribute(AuthConstant.TOKEN, RequestAttributes.SCOPE_REQUEST);
+    }
+
+    @Override
+    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+        AuthConstant.redis = applicationContext.getBean(Redis.class);
     }
 }
