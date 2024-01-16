@@ -14,7 +14,7 @@ class ProgramLoginResp : WXBaseResp() {
     /**
      * 用户在开放平台的唯一标识符
      */
-    var unionid: Int? = null
+    var unionid: String? = null
 
     /**
      * 用户唯一标识
