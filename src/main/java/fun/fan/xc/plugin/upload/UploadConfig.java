@@ -1,5 +1,6 @@
 package fun.fan.xc.plugin.upload;
 
+import fun.fan.xc.starter.utils.Dict;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -26,5 +27,13 @@ public class UploadConfig {
         private String endpoint;
         private String accessKey;
         private String secretKey;
+        /**
+         * 用于构建访问url的基础路径
+         */
+        private String baseHost = Dict.BLANK;
+        /**
+         * 默认使用的桶名称
+         */
+        private String bucketName;
     }
 }

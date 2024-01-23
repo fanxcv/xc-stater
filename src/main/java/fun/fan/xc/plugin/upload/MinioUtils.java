@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.http.MediaType;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
@@ -27,15 +28,18 @@ import java.util.Objects;
 @ConditionalOnProperty(prefix = "xc.upload.minio", value = "enable", havingValue = "true")
 public class MinioUtils implements InitializingBean {
     private static MinioClient client;
+    private static String baseHost;
     private static String endpoint;
     private static String accessKey;
     private static String secretKey;
+    private static String bucketName;
+    private final UploadConfig config;
 
     /**
      * 获取上传文件前缀路径
      */
     public static String getBasisUrl(String bucketName) {
-        return endpoint + Dict.SEPARATOR + bucketName + Dict.SEPARATOR;
+        return baseHost + Dict.SEPARATOR + bucketName + Dict.SEPARATOR;
     }
 
     /**
@@ -53,6 +57,10 @@ public class MinioUtils implements InitializingBean {
     /**
      * 判断Bucket是否存在，true：存在，false：不存在
      */
+    public static boolean bucketExists() {
+        return bucketExists(bucketName);
+    }
+
     public static boolean bucketExists(String bucketName) {
         try {
             return client.bucketExists(BucketExistsArgs.builder().bucket(bucketName).build());
@@ -64,6 +72,10 @@ public class MinioUtils implements InitializingBean {
     /**
      * 创建Bucket
      */
+    public static void createBucket() {
+        createBucket(bucketName);
+    }
+
     private static void createBucket(String bucketName) {
         if (!bucketExists(bucketName)) {
             try {
@@ -77,6 +89,10 @@ public class MinioUtils implements InitializingBean {
     /**
      * 根据bucketName删除Bucket
      */
+    public static void removeBucket() {
+        removeBucket(bucketName);
+    }
+
     public static void removeBucket(String bucketName) {
         try {
             client.removeBucket(RemoveBucketArgs.builder().bucket(bucketName).build());
@@ -99,9 +115,12 @@ public class MinioUtils implements InitializingBean {
     /**
      * 判断文件是否存在
      *
-     * @param bucketName 存储桶
      * @param objectName 文件名
      */
+    public static boolean isObjectExist(String objectName) {
+        return isObjectExist(bucketName, objectName);
+    }
+
     public static boolean isObjectExist(String bucketName, String objectName) {
         boolean exist = true;
         try {
@@ -116,9 +135,12 @@ public class MinioUtils implements InitializingBean {
     /**
      * 判断文件夹是否存在
      *
-     * @param bucketName 存储桶
      * @param objectName 文件夹名称
      */
+    public static boolean isFolderExist(String objectName) {
+        return isFolderExist(bucketName, objectName);
+    }
+
     public static boolean isFolderExist(String bucketName, String objectName) {
         boolean exist = false;
         try {
@@ -140,11 +162,14 @@ public class MinioUtils implements InitializingBean {
     /**
      * 根据文件前置查询文件
      *
-     * @param bucketName 存储桶
-     * @param prefix     前缀
-     * @param recursive  是否使用递归查询
+     * @param prefix    前缀
+     * @param recursive 是否使用递归查询
      * @return MinioItem 列表
      */
+    public static List<Item> getAllObjectsByPrefix(String prefix, boolean recursive) {
+        return getAllObjectsByPrefix(bucketName, prefix, recursive);
+    }
+
     public static List<Item> getAllObjectsByPrefix(String bucketName, String prefix, boolean recursive) {
         List<Item> list = new ArrayList<>();
         try {
@@ -165,10 +190,13 @@ public class MinioUtils implements InitializingBean {
     /**
      * 获取文件流
      *
-     * @param bucketName 存储桶
      * @param objectName 文件名
      * @return 二进制流
      */
+    public static InputStream getObject(String objectName) {
+        return getObject(bucketName, objectName);
+    }
+
     public static InputStream getObject(String bucketName, String objectName) {
         try {
             return client.getObject(GetObjectArgs.builder().bucket(bucketName).object(objectName).build());
@@ -180,9 +208,12 @@ public class MinioUtils implements InitializingBean {
     /**
      * 使用MultipartFile进行文件上传
      *
-     * @param bucketName 存储桶
-     * @param file       文件名
+     * @param file 文件名
      */
+    public static ObjectWriteResponse uploadFile(MultipartFile file) {
+        return uploadFile(bucketName, file);
+    }
+
     public static ObjectWriteResponse uploadFile(String bucketName, MultipartFile file) {
         try {
             String type = file.getContentType();
@@ -203,10 +234,13 @@ public class MinioUtils implements InitializingBean {
     /**
      * 通过流上传文件
      *
-     * @param bucketName  存储桶
      * @param objectName  文件对象
      * @param inputStream 文件流
      */
+    public static ObjectWriteResponse uploadFile(String objectName, InputStream inputStream) {
+        return uploadFile(bucketName, objectName, inputStream);
+    }
+
     public static ObjectWriteResponse uploadFile(String bucketName, String objectName, InputStream inputStream) {
         try {
             return client.putObject(
@@ -223,18 +257,21 @@ public class MinioUtils implements InitializingBean {
     /**
      * 通过流上传文件
      *
-     * @param bucketName  存储桶
      * @param objectName  文件对象
      * @param contentType 文件类型
      * @param inputStream 文件流
      */
-    public static ObjectWriteResponse uploadFile(String bucketName, String objectName, String contentType, InputStream inputStream) {
+    public static ObjectWriteResponse uploadFile(String objectName, MediaType contentType, InputStream inputStream) {
+        return uploadFile(bucketName, objectName, contentType, inputStream);
+    }
+
+    public static ObjectWriteResponse uploadFile(String bucketName, String objectName, MediaType contentType, InputStream inputStream) {
         try {
             return client.putObject(
                     PutObjectArgs.builder()
                             .bucket(bucketName)
                             .object(objectName)
-                            .contentType(contentType)
+                            .contentType(contentType.toString())
                             .stream(inputStream, inputStream.available(), -1)
                             .build());
         } catch (Exception e) {
@@ -245,9 +282,12 @@ public class MinioUtils implements InitializingBean {
     /**
      * 创建文件夹或目录
      *
-     * @param bucketName 存储桶
      * @param objectName 目录路径
      */
+    public static ObjectWriteResponse createDir(String objectName) {
+        return createDir(bucketName, objectName);
+    }
+
     public static ObjectWriteResponse createDir(String bucketName, String objectName) {
         try {
             return client.putObject(
@@ -264,9 +304,12 @@ public class MinioUtils implements InitializingBean {
     /**
      * 获取文件信息, 如果抛出异常则说明文件不存在
      *
-     * @param bucketName 存储桶
      * @param objectName 文件名称
      */
+    public static StatObjectResponse getFileStatusInfo(String objectName) {
+        return getFileStatusInfo(bucketName, objectName);
+    }
+
     public static StatObjectResponse getFileStatusInfo(String bucketName, String objectName) {
         try {
             return client.statObject(
@@ -282,11 +325,14 @@ public class MinioUtils implements InitializingBean {
     /**
      * 拷贝文件
      *
-     * @param bucketName    存储桶
      * @param objectName    文件名
      * @param srcBucketName 目标存储桶
      * @param srcObjectName 目标文件名
      */
+    public static ObjectWriteResponse copyFile(String objectName, String srcBucketName, String srcObjectName) {
+        return copyFile(bucketName, objectName, srcBucketName, srcObjectName);
+    }
+
     public static ObjectWriteResponse copyFile(String bucketName, String objectName,
                                                String srcBucketName, String srcObjectName) {
         try {
@@ -304,9 +350,12 @@ public class MinioUtils implements InitializingBean {
     /**
      * 删除文件
      *
-     * @param bucketName 存储桶
      * @param objectName 文件名称
      */
+    public static void removeFile(String objectName) {
+        removeFile(bucketName, objectName);
+    }
+
     public static void removeFile(String bucketName, String objectName) {
         try {
             client.removeObject(
@@ -322,14 +371,15 @@ public class MinioUtils implements InitializingBean {
     /**
      * 批量删除文件
      *
-     * @param bucketName 存储桶
-     * @param keys       需要删除的文件列表
+     * @param keys 需要删除的文件列表
      */
+    public static void removeFiles(List<String> keys) {
+        removeFiles(bucketName, keys);
+    }
+
     public static void removeFiles(String bucketName, List<String> keys) {
         keys.forEach(s -> removeFile(bucketName, s));
     }
-
-    private final UploadConfig config;
 
     private void createClient() {
         if (null == client) {
@@ -346,9 +396,11 @@ public class MinioUtils implements InitializingBean {
     @Override
     public void afterPropertiesSet() {
         log.info("===> init minio client");
+        baseHost = config.getMinio().getBaseHost();
         endpoint = config.getMinio().getEndpoint();
         accessKey = config.getMinio().getAccessKey();
         secretKey = config.getMinio().getSecretKey();
+        bucketName = config.getMinio().getBucketName();
         createClient();
     }
 }
