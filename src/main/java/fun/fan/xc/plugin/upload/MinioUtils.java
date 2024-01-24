@@ -1,5 +1,6 @@
 package fun.fan.xc.plugin.upload;
 
+import cn.hutool.core.util.StrUtil;
 import fun.fan.xc.starter.exception.XcRunException;
 import fun.fan.xc.starter.utils.Dict;
 import io.minio.*;
@@ -401,6 +402,9 @@ public class MinioUtils implements InitializingBean {
         accessKey = config.getMinio().getAccessKey();
         secretKey = config.getMinio().getSecretKey();
         bucketName = config.getMinio().getBucketName();
+        if (StrUtil.isBlank(baseHost)) {
+            baseHost = endpoint;
+        }
         createClient();
     }
 }
