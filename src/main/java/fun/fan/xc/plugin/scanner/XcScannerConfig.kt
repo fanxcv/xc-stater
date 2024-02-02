@@ -93,18 +93,12 @@ class XcScannerConfig : ImportBeanDefinitionRegistrar, ResourceLoaderAware, Bean
         this.beanFactory = beanFactory
     }
 
-    class XcClassPathBeanDefinitionScanner(registry: BeanDefinitionRegistry?, cache: Map<Class<*>, XcScannerConsumer>) :
+    class XcClassPathBeanDefinitionScanner(registry: BeanDefinitionRegistry?, private val cache: Map<Class<*>, XcScannerConsumer>) :
         ClassPathBeanDefinitionScanner(
             registry!!, false
         ) {
         private val log: Logger = LoggerFactory.getLogger(this::class.java)
-        private val cache: Map<Class<*>, XcScannerConsumer>
-        private val scannerTypes: Set<Class<*>>
-
-        init {
-            scannerTypes = cache.keys
-            this.cache = cache
-        }
+        private val scannerTypes: Set<Class<*>> = cache.keys
 
         override fun doScan(vararg basePackages: String): Set<BeanDefinitionHolder> {
             // 扫描包下所有的类

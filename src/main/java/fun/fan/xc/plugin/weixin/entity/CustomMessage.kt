@@ -1,8 +1,11 @@
 package `fun`.fan.xc.plugin.weixin.entity
 
+import lombok.Data
+
 /**
  * @author fan
  */
+@Data
 open class CustomMessage {
     /**
      * 消息接收人

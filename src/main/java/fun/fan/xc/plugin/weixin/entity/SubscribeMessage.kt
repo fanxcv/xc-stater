@@ -4,7 +4,9 @@ import com.alibaba.fastjson2.annotation.JSONField
 import com.fasterxml.jackson.annotation.JsonProperty
 import `fun`.fan.xc.plugin.weixin.enums.LangEnum
 import `fun`.fan.xc.plugin.weixin.enums.MiniProgramStateEnum
+import lombok.Data
 
+@Data
 class SubscribeMessage {
 
     /**

@@ -2,12 +2,15 @@ package `fun`.fan.xc.plugin.weixin.entity
 
 import com.alibaba.fastjson2.annotation.JSONField
 import com.fasterxml.jackson.annotation.JsonProperty
+import lombok.Data
 
 /**
  * @author fan
  */
+@Data
 class TemplateMessage {
 
+    @Data
     class MiniProgram {
         /**
          * 所需跳转到的小程序appid（该小程序appid必须与发模板消息的公众号是绑定关联关系，暂不支持小游戏）
