@@ -14,11 +14,7 @@ import javax.servlet.http.HttpServletRequestWrapper
  * @author fan
  */
 class BufferedServletRequestWrapper(request: HttpServletRequest) : HttpServletRequestWrapper(request) {
-    private val body: ByteArray
-
-    init {
-        body = request.inputStream.use { it.readBytes() }
-    }
+    private val body: ByteArray = request.inputStream.use { it.readBytes() }
 
     override fun getReader(): BufferedReader {
         return BufferedReader(InputStreamReader(inputStream))

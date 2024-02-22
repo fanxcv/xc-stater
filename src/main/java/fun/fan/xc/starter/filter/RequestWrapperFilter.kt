@@ -1,5 +1,6 @@
 package `fun`.fan.xc.starter.filter
 
+import `fun`.fan.xc.starter.utils.Dict
 import `fun`.fan.xc.starter.wrapper.BufferedServletRequestWrapper
 import lombok.extern.slf4j.Slf4j
 import org.slf4j.Logger
@@ -24,6 +25,7 @@ class RequestWrapperFilter : Filter {
         }
         val contentType: String? = request.contentType
         if (contentType?.contains(MediaType.APPLICATION_JSON_VALUE) == true) {
+            request.setAttribute(Dict.REQUEST_USE_WRAPPER, true)
             val wrapper = BufferedServletRequestWrapper(request)
             return chain.doFilter(wrapper, response)
         }

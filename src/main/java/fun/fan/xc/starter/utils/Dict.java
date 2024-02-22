@@ -5,6 +5,7 @@ package fun.fan.xc.starter.utils;
  */
 public class Dict {
     public static final String REQUEST_DEAL_BY_XC_CORE = "xcCoreCoverThisRequest";
+    public static final String REQUEST_USE_WRAPPER = "xcWrapperRequest";
     /**
      * http请求头固定字段
      */
