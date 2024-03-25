@@ -21,8 +21,10 @@ import java.util.Set;
 @Configuration
 @NoArgsConstructor
 @AllArgsConstructor
-@ConfigurationProperties("xc")
+@ConfigurationProperties(XcConfiguration.PREFIX)
 public class XcConfiguration {
+    public static final String PREFIX = "xc";
+
     /**
      * 核心配置
      */

@@ -73,6 +73,10 @@ public class BaseAuthInterceptor implements HandlerInterceptor {
             if (Objects.isNull(annotation)) {
                 return true;
             }
+            String[] users = annotation.user();
+            if (ArrayUtil.isNotEmpty(users) && !checkUsers(user, users)) {
+                throw new XcServiceException(ReturnCode.FORBIDDEN);
+            }
             String[] role = annotation.role();
             if (ArrayUtil.isNotEmpty(role) && !checkRoles(user, role)) {
                 throw new XcServiceException(ReturnCode.FORBIDDEN);
@@ -96,6 +100,16 @@ public class BaseAuthInterceptor implements HandlerInterceptor {
         } else {
             throw new XcServiceException(ReturnCode.UNAUTHORIZED);
         }
+    }
+
+    public boolean checkUsers(XcBaseUser user, String... users) {
+        if (Objects.isNull(user) || StrUtil.isBlank(user.getAccount())) {
+            return false;
+        }
+        if (Objects.isNull(users) || users.length == 0) {
+            return false;
+        }
+        return Arrays.asList(users).contains(user.getAccount());
     }
 
 

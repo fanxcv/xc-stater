@@ -36,6 +36,7 @@ public class AuthAutoConfigure implements WebMvcConfigurer, ApplicationContextAw
 
     @Override
     public void addInterceptors(@NonNull InterceptorRegistry registry) {
+        Assert.notNull(authConfigure, "请检查认证信息配置是否正确, 相关配置为: xc.authentication");
         beans.forEach((k, v) -> {
             AuthConfigure.Configure configure = v.getConfigure(authConfigure);
             Set<String> excludePath = configure.getExcludePath();
