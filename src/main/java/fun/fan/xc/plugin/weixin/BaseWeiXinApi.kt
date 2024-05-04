@@ -2,6 +2,7 @@ package `fun`.fan.xc.plugin.weixin
 
 import com.wechat.pay.java.core.RSAAutoCertificateConfig
 import com.wechat.pay.java.core.RSAConfig
+import `fun`.fan.xc.plugin.token_manager.TokenManager
 import `fun`.fan.xc.plugin.weixin.entity.WXAccessTokenCommonResp
 import `fun`.fan.xc.starter.utils.Dict
 import `fun`.fan.xc.starter.utils.NetUtils

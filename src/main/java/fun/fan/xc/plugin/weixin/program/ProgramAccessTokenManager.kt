@@ -1,7 +1,9 @@
 package `fun`.fan.xc.plugin.weixin.program
 
-import `fun`.fan.xc.plugin.weixin.BaseAccessTokenManager
+import `fun`.fan.xc.plugin.token_manager.DefaultTokenManager
 import `fun`.fan.xc.plugin.weixin.WeiXinConfig
+import `fun`.fan.xc.plugin.weixin.WeiXinDict
+import `fun`.fan.xc.starter.utils.NetUtils
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Lazy
 import org.springframework.stereotype.Component
@@ -15,13 +17,17 @@ import org.springframework.stereotype.Component
     matchIfMissing = false
 )
 class ProgramAccessTokenManager(
-    config: WeiXinConfig,
-    weiXinApiClient: ProgramWeiXinApiClient?
-) : BaseAccessTokenManager(config, weiXinApiClient) {
-    init {
-        appId = config.miniProgram.appId
-        appSecret = config.miniProgram.appSecret
+    private val config: WeiXinConfig,
+    private val weiXinApiClient: ProgramWeiXinApiClient?
+) : DefaultTokenManager() {
+
+    override fun key() = "programAccessToken"
+
+    override fun requestToken() {
+        log.info("===> weixin: request program accessToken")
+        val json = weiXinApiClient?.accessToken()
+            ?: NetUtils.build(WeiXinDict.WX_API_ACCESS_TOKEN.format(config.miniProgram.appId, config.miniProgram.appSecret))
+                .doGet()
+        parseAndUpdateToken(json)
     }
-    override fun logName() = "ProgramAccessTokenManager"
-    override fun name() = "programAccessToken"
 }

@@ -13,7 +13,10 @@ import org.springframework.beans.factory.InitializingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.validation.annotation.Validated
-import org.springframework.web.bind.annotation.*
+import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.web.bind.annotation.RestController
 import javax.validation.constraints.NotBlank
 
 @RestController
@@ -57,24 +60,6 @@ class OfficialWeiXinApiController(
                 "accessTokenExpires" to accessTokenManager.expires()
             )
         )
-    }
-
-    /**
-     * 初始化刷新锁, 避免死锁必须重启服务器
-     */
-    @PutMapping("initLock")
-    fun initLock() {
-        accessTokenManager.initLock()
-        jsApiTicketManager.initLock()
-    }
-
-    /**
-     * 强制触发Token刷新
-     */
-    @PutMapping("initToken")
-    fun initToken() {
-        accessTokenManager.initToken()
-        jsApiTicketManager.initToken()
     }
 
     /**

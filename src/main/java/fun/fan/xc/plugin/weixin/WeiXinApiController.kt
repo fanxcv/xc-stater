@@ -1,5 +1,6 @@
 package `fun`.fan.xc.plugin.weixin
 
+import `fun`.fan.xc.plugin.token_manager.TokenManager
 import `fun`.fan.xc.starter.out.R
 import org.apache.commons.lang3.StringUtils
 import org.slf4j.Logger
@@ -9,7 +10,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.context.ApplicationContext
 import org.springframework.context.ApplicationContextAware
 import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.util.stream.Collectors
@@ -32,25 +32,9 @@ class WeiXinApiController(
     fun getToken(): R<Map<String, Any>> {
         return R.success(
             tokenMangers.stream().collect(
-                Collectors.toMap({ it.name() }, { it.token() })
+                Collectors.toMap({ it.key() }, { it.token() })
             )
         )
-    }
-
-    /**
-     * 初始化刷新锁, 避免死锁必须重启服务器
-     */
-    @PutMapping("initLock")
-    fun initLock() {
-        tokenMangers.forEach { it.initLock() }
-    }
-
-    /**
-     * 强制触发Token刷新
-     */
-    @PutMapping("initToken")
-    fun initToken() {
-        tokenMangers.forEach { it.initToken() }
     }
 
     override fun afterPropertiesSet() {
