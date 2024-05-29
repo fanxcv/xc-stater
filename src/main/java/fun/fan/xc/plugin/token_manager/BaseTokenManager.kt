@@ -29,11 +29,11 @@ abstract class BaseTokenManager : TokenManager, InitializingBean {
         }
 
         val time = System.currentTimeMillis()
-        val map = JSONObject.parse(json) as MutableMap<*, *>
-        entity.token = map[tokenKey] as String
+        val map: JSONObject = JSONObject.parse(json)
+        entity.token = map.getString(tokenKey)
 
         // map["expires"]是处理client端的
-        val expiresTime = (map[expiresKey] ?: map["expires"]) as Long?
+        val expiresTime = map.getLong(expiresKey) ?: map.getLong("expires")
         if (expiresTime == null || expiresTime == 0L) {
             log.error("{}: 获取到的Token无效: {}", key(), json)
             return
