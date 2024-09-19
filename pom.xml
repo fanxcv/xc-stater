@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>fun.fan-x</groupId>
     <artifactId>xc-starter</artifactId>
-    <version>1.0.30-SNAPSHOT</version>
+    <version>1.0.30-BETA-SNAPSHOT</version>
 
     <name>xc-starter</name>
     <description>自定义spring boot组件包</description>
@@ -101,7 +102,7 @@
         <dependency>
             <groupId>io.minio</groupId>
             <artifactId>minio</artifactId>
-            <version>8.5.7</version>
+            <version>8.5.11</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -132,7 +133,7 @@
         <dependency>
             <groupId>com.itextpdf</groupId>
             <artifactId>itextpdf</artifactId>
-            <version>5.5.13.3</version>
+            <version>5.5.13.4</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -140,6 +141,14 @@
             <artifactId>itext-asian</artifactId>
             <version>5.2.0</version>
             <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>cn.com.mcsca</groupId>
+            <artifactId>pki-core</artifactId>
+            <version>1.0.0-release</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/src/main/resources/ca/pki-core-1.1.0-release.jar</systemPath>
         </dependency>
 
         <dependency>
@@ -178,6 +187,7 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+
 
     <build>
         <sourceDirectory>${project.basedir}/src/main/java</sourceDirectory>
@@ -229,6 +239,16 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.4.2</version>
+                <configuration>
+                    <excludes>
+                        <exclude>**/*.jar</exclude>
+                    </excludes>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.jetbrains.kotlin</groupId>
@@ -291,7 +311,8 @@
         </plugins>
     </build>
 
-    <!--自定义仓库使用Maven-Go搭建, https://github.com/fanxcv/Maven-Go-->
+    <!--自定义仓库使用Maven-Go搭建,
+    https://github.com/fanxcv/Maven-Go-->
     <repositories>
         <repository>
             <id>fan</id>
