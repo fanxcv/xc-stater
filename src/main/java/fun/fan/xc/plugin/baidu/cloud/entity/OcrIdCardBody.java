@@ -1,11 +1,14 @@
 package fun.fan.xc.plugin.baidu.cloud.entity;
 
+import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson2.annotation.JSONField;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Maps;
 import lombok.Data;
+import lombok.SneakyThrows;
 import lombok.experimental.Accessors;
 
+import java.net.URLEncoder;
 import java.util.Map;
 
 /**
@@ -89,17 +92,39 @@ public class OcrIdCardBody {
     @JsonProperty("detect_direction")
     private String detectDirection;
 
+
+    @SneakyThrows
     public Map<String, Object> toRequestBody() {
         Map<String, Object> map = Maps.newHashMap();
-        map.put("image", this.image);
-        map.put("url", this.url);
+
         map.put("id_card_side", this.idCardSide);
-        map.put("detect_ps", this.detectPs);
-        map.put("detect_risk", this.detectRisk);
-        map.put("detect_quality", this.detectQuality);
-        map.put("detect_photo", this.detectPhoto);
-        map.put("detect_card", this.detectCard);
-        map.put("detect_direction", this.detectDirection);
+
+        if (StrUtil.isNotBlank(this.image)) {
+            map.put("image", URLEncoder.encode(this.image, "UTF-8"));
+        }
+        if (StrUtil.isNotBlank(this.url)) {
+            map.put("url", this.url);
+        }
+
+        if (StrUtil.isNotBlank(this.detectPs)) {
+            map.put("detect_ps", this.detectPs);
+        }
+        if (StrUtil.isNotBlank(this.detectRisk)) {
+            map.put("detect_risk", this.detectRisk);
+        }
+        if (StrUtil.isNotBlank(this.detectQuality)) {
+            map.put("detect_quality", this.detectQuality);
+        }
+        if (StrUtil.isNotBlank(this.detectPhoto)) {
+            map.put("detect_photo", this.detectPhoto);
+        }
+        if (StrUtil.isNotBlank(this.detectCard)) {
+            map.put("detect_card", this.detectCard);
+        }
+        if (StrUtil.isNotBlank(this.detectDirection)) {
+            map.put("detect_direction", this.detectDirection);
+        }
+
         return map;
     }
 }

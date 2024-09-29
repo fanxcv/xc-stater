@@ -3,6 +3,7 @@ package fun.fan.xc.plugin.baidu.cloud.entity;
 import com.alibaba.fastjson2.annotation.JSONField;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
 
 import java.util.Map;
@@ -12,7 +13,8 @@ import java.util.Map;
  */
 @Data
 @Accessors(chain = true)
-public class OcrIdCardResponse {
+@EqualsAndHashCode(callSuper = true)
+public class OcrIdCardResponse extends BaseResponse {
     @JSONField(name = "log_id")
     @JsonProperty("log_id")
     private long logId;
