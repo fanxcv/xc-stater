@@ -72,19 +72,21 @@ public class AuthUtil implements ApplicationContextAware {
 
     /**
      * 刷新用户信息
+     * @return 新的用户信息
      */
-    public void refreshUserInfo() {
+    public XcBaseUser refreshUserInfo() {
         XcBaseUser user = AuthLocal.getUser();
-        refreshUserInfo(user);
+        return refreshUserInfo(user);
     }
 
     /**
      * 刷新用户信息
      * 支持传入指定用户
+     * @return 新的用户信息
      */
-    public void refreshUserInfo(XcBaseUser u) {
+    public XcBaseUser refreshUserInfo(XcBaseUser u) {
         if (Objects.isNull(u)) {
-            return;
+            return null;
         }
 
         String key = String.format(AuthConstant.USER_PREFIX, u.getClient(), u.getAccount());
@@ -98,7 +100,9 @@ public class AuthUtil implements ApplicationContextAware {
             redis.del(key);
         }
 
-        AuthLocal.setUser(u);
+        AuthLocal.setUser(user);
+
+        return user;
     }
 
     public String currentToken() {
