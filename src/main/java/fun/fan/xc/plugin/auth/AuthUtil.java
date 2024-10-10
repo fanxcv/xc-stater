@@ -14,6 +14,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author fan
@@ -23,6 +24,7 @@ import java.util.Optional;
 public class AuthUtil implements ApplicationContextAware {
     private final Redis redis;
     private final AuthConfigure authConfigure;
+    private final XcAuthInterface xcAuthInterface;
 
     /**
      * 创建 Token
@@ -80,10 +82,23 @@ public class AuthUtil implements ApplicationContextAware {
      * 刷新用户信息
      * 支持传入指定用户
      */
-    public void refreshUserInfo(XcBaseUser user) {
-        if (Objects.nonNull(user)) {
-            redis.del(String.format(AuthConstant.USER_PREFIX, user.getClient(), user.getAccount()));
+    public void refreshUserInfo(XcBaseUser u) {
+        if (Objects.isNull(u)) {
+            return;
         }
+
+        String key = String.format(AuthConstant.USER_PREFIX, u.getClient(), u.getAccount());
+        AuthConfigure.Configure configure = authConfigure.getConfigureByClient(u.getClient());
+        XcBaseUser user = xcAuthInterface.select(u.getAccount());
+        Assert.isTrue(xcAuthInterface.checkUser(user), "用户异常");
+
+        if (configure.isUserCache()) {
+            redis.setEx(key, user, configure.getUserCacheExpires().getSeconds(), TimeUnit.SECONDS);
+        } else {
+            redis.del(key);
+        }
+
+        AuthLocal.setUser(u);
     }
 
     public String currentToken() {
