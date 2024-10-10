@@ -38,6 +38,10 @@ public class R<T> {
     @JsonIgnore
     @JSONField(serialize = false)
     private transient HttpStatus status = HttpStatus.OK;
+    @Hidden
+    @JsonIgnore
+    @JSONField(serialize = false)
+    private transient String redirect = null;
 
     private R() {
         code = ReturnCode.SUCCESS.code();
@@ -46,6 +50,14 @@ public class R<T> {
 
     public static <D> R<D> build() {
         return success();
+    }
+
+    public static <D> R<D> ok() {
+        return new R<D>().returnCode(ReturnCode.SUCCESS);
+    }
+
+    public static <D> R<D> ok(D data) {
+        return new R<D>().returnCode(ReturnCode.SUCCESS).body(data);
     }
 
     public static <D> R<D> success() {
@@ -96,6 +108,11 @@ public class R<T> {
 
     public R<T> status(HttpStatus status) {
         this.status = status;
+        return this;
+    }
+
+    public R<T> redirect(String redirect) {
+        this.redirect = redirect;
         return this;
     }
 

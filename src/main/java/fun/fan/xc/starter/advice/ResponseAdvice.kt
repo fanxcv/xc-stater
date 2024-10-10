@@ -33,6 +33,7 @@ class ResponseAdvice : ResponseBodyAdvice<Any> {
             if (body.status != HttpStatus.OK) {
                 response.setStatusCode(body.status)
             }
+
             if (response is ServletServerHttpResponse) {
                 if (body.headers.isNotEmpty()) {
                     body.headers.forEach { (k, v) ->
@@ -47,7 +48,12 @@ class ResponseAdvice : ResponseBodyAdvice<Any> {
                         response.servletResponse.addCookie(cookie)
                     }
                 }
+
+                if (!body.redirect.isNullOrEmpty()) {
+                    response.servletResponse.sendRedirect(body.redirect)
+                }
             }
+
             if (body.extendData.isNotEmpty()) {
                 body.extendData["code"] = body.code
                 body.extendData["body"] = body.body
