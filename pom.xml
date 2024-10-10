@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>fun.fan-x</groupId>
@@ -146,9 +145,8 @@
         <dependency>
             <groupId>cn.com.mcsca</groupId>
             <artifactId>pki-core</artifactId>
-            <version>1.0.0-release</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/src/main/resources/ca/pki-core-1.1.0-release.jar</systemPath>
+            <version>1.1.0-release</version>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
@@ -187,7 +185,6 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
-
 
     <build>
         <sourceDirectory>${project.basedir}/src/main/java</sourceDirectory>
@@ -239,16 +236,6 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>3.4.2</version>
-                <configuration>
-                    <excludes>
-                        <exclude>**/*.jar</exclude>
-                    </excludes>
-                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.jetbrains.kotlin</groupId>
@@ -311,8 +298,7 @@
         </plugins>
     </build>
 
-    <!--自定义仓库使用Maven-Go搭建,
-    https://github.com/fanxcv/Maven-Go-->
+    <!--自定义仓库使用Maven-Go搭建, https://github.com/fanxcv/Maven-Go-->
     <repositories>
         <repository>
             <id>fan</id>
