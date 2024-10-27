@@ -42,6 +42,9 @@ public class BaseAuthInterceptor implements HandlerInterceptor {
         HandlerMethod hm = (HandlerMethod) handler;
         // 判断接口是否需要做登录校验
         AuthIgnore authIgnore = hm.getMethodAnnotation(AuthIgnore.class);
+        if (Objects.isNull(authIgnore)) {
+            authIgnore = hm.getBeanType().getAnnotation(AuthIgnore.class);
+        }
         AuthConfigure.Configure configure = xcAuthInterface.getConfigure(authConfigure);
         String client = xcAuthInterface.client();
         // Token校验

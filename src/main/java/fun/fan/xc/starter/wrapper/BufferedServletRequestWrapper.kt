@@ -30,6 +30,8 @@ class BufferedServletRequestWrapper(request: HttpServletRequest) : HttpServletRe
             override fun setReadListener(listener: ReadListener) {}
 
             override fun read(): Int = inputStream.read()
+
+            override fun available(): Int = inputStream.available()
         }
     }
 }
