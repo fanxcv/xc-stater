@@ -2,6 +2,7 @@ package fun.fan.xc.plugin.auth;
 
 import cn.hutool.core.lang.Assert;
 import cn.hutool.core.lang.UUID;
+import com.google.common.collect.Maps;
 import fun.fan.xc.plugin.redis.Redis;
 import fun.fan.xc.starter.exception.XcToolsException;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +13,7 @@ import org.springframework.context.ApplicationContextAware;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -22,9 +24,10 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @RequiredArgsConstructor
 public class AuthUtil implements ApplicationContextAware {
-    private final Redis redis;
     private final AuthConfigure authConfigure;
-    private final XcAuthInterface xcAuthInterface;
+    private final Redis redis;
+
+    private final Map<String, XcAuthInterface> beans = Maps.newHashMap();
 
     /**
      * 创建 Token
@@ -72,6 +75,7 @@ public class AuthUtil implements ApplicationContextAware {
 
     /**
      * 刷新用户信息
+     *
      * @return 新的用户信息
      */
     public XcBaseUser refreshUserInfo() {
@@ -82,6 +86,7 @@ public class AuthUtil implements ApplicationContextAware {
     /**
      * 刷新用户信息
      * 支持传入指定用户
+     *
      * @return 新的用户信息
      */
     public XcBaseUser refreshUserInfo(XcBaseUser u) {
@@ -91,6 +96,7 @@ public class AuthUtil implements ApplicationContextAware {
 
         String key = String.format(AuthConstant.USER_PREFIX, u.getClient(), u.getAccount());
         AuthConfigure.Configure configure = authConfigure.getConfigureByClient(u.getClient());
+        XcAuthInterface xcAuthInterface = beans.get(u.getClient());
         XcBaseUser user = xcAuthInterface.select(u.getAccount());
         Assert.isTrue(xcAuthInterface.checkUser(user), "用户异常");
 
@@ -113,5 +119,8 @@ public class AuthUtil implements ApplicationContextAware {
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
         AuthConstant.redis = applicationContext.getBean(Redis.class);
+        Map<String, XcAuthInterface> map = applicationContext.getBeansOfType(XcAuthInterface.class);
+        Assert.notEmpty(map, "请先实现XcAuthInterceptor接口");
+        map.forEach((k, v) -> beans.put(v.client(), v));
     }
 }
