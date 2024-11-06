@@ -21,7 +21,7 @@ public class OcrIdCardResponse extends BaseResponse {
 
     @JSONField(name = "words_result")
     @JsonProperty("words_result")
-    private Map<String, Location> wordsResult;
+    private Map<String, Words> wordsResult;
 
     @JSONField(name = "words_result_num")
     @JsonProperty("words_result_num")
@@ -96,6 +96,12 @@ public class OcrIdCardResponse extends BaseResponse {
         @JSONField(name = "IsNoCover_propobility")
         @JsonProperty("IsNoCover_propobility")
         private String isNoCoverPropobility;
+    }
+
+    @Data
+    public static class Words {
+        private String words;
+        private Location location;
     }
 
     @Data
