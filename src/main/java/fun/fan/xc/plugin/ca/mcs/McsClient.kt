@@ -12,12 +12,15 @@ import `fun`.fan.xc.starter.exception.XcServiceException
 import `fun`.fan.xc.starter.utils.NetUtils
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import org.springframework.http.MediaType
+import java.io.InputStream
 import java.lang.reflect.Type
+import java.util.function.Consumer
 
 class McsClient(val config: McsConfig) {
     private val log: Logger = LoggerFactory.getLogger(this::class.java)
 
-    fun <T : McsBody, V> execute(body: T, type: Type): V {
+    private fun <T : McsBody> extractParameters(body: T): Pair<String, String> {
         // 获取body对象上的McsPath注解
         val mcsPath = body::class.java.getAnnotation(McsPath::class.java) ?: throw XcServiceException("reqBody对象上没有McsPath注解, 无法获取接口地址")
         val url = mcsPath.value
@@ -38,6 +41,11 @@ class McsClient(val config: McsConfig) {
             log.debug("请求地址: {}\n参数: {}", url, json)
         }
 
+        return Pair(url, json)
+    }
+
+    fun <T : McsBody, V> execute(body: T, type: Type): V {
+        val (url, json) = extractParameters(body)
         return NetUtils.build("${config.apiHost}$url")
             .body(json)
             .doPost { it ->
@@ -52,4 +60,16 @@ class McsClient(val config: McsConfig) {
                 response.resBody.to(type)
             }
     }
+
+    fun <T : McsBody> download(body: T, function: Consumer<InputStream>) {
+        val (url, json) = extractParameters(body)
+        NetUtils.build("${config.apiHost}$url")
+            .contentType(MediaType.MULTIPART_FORM_DATA)
+            .addForm("reqParam", json, MediaType.APPLICATION_JSON)
+            .doPost { it ->
+                function.accept(it)
+                null
+            }
+    }
+
 }

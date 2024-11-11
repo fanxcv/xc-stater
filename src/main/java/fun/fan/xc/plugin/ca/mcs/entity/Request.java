@@ -2,7 +2,6 @@ package fun.fan.xc.plugin.ca.mcs.entity;
 
 import fun.fan.xc.plugin.ca.mcs.McsUtils;
 import lombok.Data;
-import lombok.Getter;
 import lombok.experimental.Accessors;
 
 import java.text.SimpleDateFormat;

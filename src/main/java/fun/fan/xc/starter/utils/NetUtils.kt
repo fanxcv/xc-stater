@@ -33,6 +33,10 @@ object NetUtils {
         var type: String = MediaType.APPLICATION_OCTET_STREAM_VALUE
     }
 
+    data class Param(val key: String, val value: Any?, val type: MediaType = MediaType.TEXT_PLAIN) {
+
+    }
+
     @JvmStatic
     fun build(): Builder = Builder()
 
@@ -49,6 +53,7 @@ object NetUtils {
         private val headers: MutableMap<String, String> = Maps.newHashMap()
         private val params: MutableMap<String, Any?> = Maps.newHashMap()
         private val files: MutableList<Upload> = Lists.newLinkedList()
+        private val form: MutableList<Param> = Lists.newLinkedList()
 
         private var beforeRequest: ((HttpURLConnection) -> Unit)? = null
 
@@ -90,6 +95,23 @@ object NetUtils {
          */
         fun addParams(vs: Map<String, Any?>?): Builder {
             if (vs != null) this.params.putAll(vs)
+            return this
+        }
+
+        /**
+         * 添加multipart/form-data参数
+         */
+        fun addForm(k: String, v: Any?): Builder {
+            this.form.add(Param(k, v))
+            return this
+        }
+
+        /**
+         * 添加multipart/form-data参数
+         * 支持指定Content-Type
+         */
+        fun addForm(k: String, v: Any?, type: MediaType): Builder {
+            this.form.add(Param(k, v, type))
             return this
         }
 
@@ -268,7 +290,8 @@ object NetUtils {
                         // 获得输出流
                         DataOutputStream(connection.outputStream).use { dos ->
                             // 写参数
-                            sendParams(params, boundary, dos)
+                            params.forEach { form.add(Param(it.key, it.value)) }
+                            sendParams(form, boundary, dos)
                             // 写文件
                             sendFile(files, boundary, dos)
                             dos.write("$LINE_END$PREFIX$boundary$PREFIX$LINE_END".toByteArray(StandardCharsets.UTF_8))
@@ -374,12 +397,12 @@ object NetUtils {
         }
     }
 
-    private fun sendParams(params: Map<String, Any?>, boundary: String, os: OutputStream) {
+    private fun sendParams(form: List<Param>, boundary: String, os: OutputStream) {
         val sb = StringBuilder()
-        params.forEach {
+        form.forEach {
             sb.append(PREFIX).append(boundary).append(LINE_END)
             sb.append("Content-Disposition: form-data; name=\"").append(it.key).append("\"").append(LINE_END)
-            sb.append("Content-Type: text/plain; charset=utf-8").append(LINE_END)
+            sb.append("Content-Type: ").append(it.type).append(LINE_END)
             sb.append(LINE_END)
             sb.append(it.value)
             sb.append(LINE_END)
@@ -396,7 +419,7 @@ object NetUtils {
                 .append(it.fileName).append("\"; filename=\"")
                 .append(it.fileName).append("\"")
                 .append(LINE_END)
-            sb.append("Content-Type:")
+            sb.append("Content-Type: ")
                 .append(it.type)
                 .append(LINE_END)
             sb.append(LINE_END)
