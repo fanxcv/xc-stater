@@ -1,8 +1,7 @@
 package `fun`.fan.xc.plugin.weixin.entity
 
 import com.alibaba.fastjson2.annotation.JSONField
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.annotation.*
 
 /**
  * 微信支付申请退款返回
@@ -94,4 +93,13 @@ open class PayRefundResp : PayBaseResp() {
     @JsonProperty("cash_refund_fee")
     @JSONField(name = "cash_refund_fee")
     var cashRefundFee: Int? = null
+
+    /**
+     * 附加数据
+     */
+    @JsonIgnore
+    @JsonAnyGetter
+    @JsonAnySetter
+    @JSONField(serialize = false)
+    var otherProperties: Map<String, Any> = HashMap()
 }

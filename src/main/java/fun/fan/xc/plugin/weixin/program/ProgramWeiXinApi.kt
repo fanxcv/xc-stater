@@ -107,7 +107,7 @@ class ProgramWeiXinApi(
     }
 
     /**
-     * 小程序统一下单接口, 直接返回能在前端调起支付的对象 m m
+     * 小程序统一下单接口, 直接返回能在前端调起支付的对象
      */
     fun payOrderSimple(order: PayUnifiedOrder): PayOrder {
         val resp: PayUnifiedOrderResp = payUnifiedOrder(order)

@@ -1,6 +1,9 @@
 package `fun`.fan.xc.plugin.weixin.entity
 
 import com.alibaba.fastjson2.annotation.JSONField
+import com.fasterxml.jackson.annotation.JsonAnyGetter
+import com.fasterxml.jackson.annotation.JsonAnySetter
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonProperty
 
 /**
@@ -139,4 +142,13 @@ open class PayPapPayApplyNotifyResp : PayBaseResp() {
     @JsonProperty("sub_mch_id")
     @JSONField(name = "sub_mch_id")
     var subMchId: String? = null
+
+    /**
+     * 附加数据
+     */
+    @JsonIgnore
+    @JsonAnyGetter
+    @JsonAnySetter
+    @JSONField(serialize = false)
+    var otherProperties: Map<String, Any> = HashMap()
 }

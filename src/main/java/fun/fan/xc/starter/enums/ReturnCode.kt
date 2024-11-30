@@ -23,9 +23,10 @@ enum class ReturnCode(
     SUCCESS(0, HttpStatus.OK, "success"),// 成功
     FAIL(-1, HttpStatus.INTERNAL_SERVER_ERROR, "failed"),// 失败 默认
     PARAM_ERROR(-2, HttpStatus.BAD_REQUEST, "Parameter error"),// 参数错误
+    DB_ERROR(-3, HttpStatus.INTERNAL_SERVER_ERROR, "数据操作异常"),// 数据库错误
     FORBIDDEN(-8, HttpStatus.FORBIDDEN, "Permission denied"),// 用户权限不足, 禁止访问
     UNAUTHORIZED(-9, HttpStatus.UNAUTHORIZED, "Unauthorized"),// 用户未认证
-    SYSTEM_ERROR(9, HttpStatus.INTERNAL_SERVER_ERROR, "System error");// 系统错误
+    SYSTEM_ERROR(9, HttpStatus.INTERNAL_SERVER_ERROR, "系统异常");// 系统错误
 
     fun message() = message
 
