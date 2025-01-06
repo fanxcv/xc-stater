@@ -28,5 +28,5 @@ public class AuthConstant {
             "/webjars/**",
             "/doc.html");
     public static final String TOKEN = "XC_AUTH_TOKEN_ATTRIBUTE";
-    static Redis redis;
+    static Redis REDIS;
 }

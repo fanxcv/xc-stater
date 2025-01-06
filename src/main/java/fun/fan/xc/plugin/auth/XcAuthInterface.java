@@ -34,7 +34,7 @@ public interface XcAuthInterface {
      * @return account
      */
     default String getAccount(String token) {
-        return AuthConstant.redis.get(String.format(AuthConstant.TOKEN_PREFIX, client(), token));
+        return AuthConstant.REDIS.get(String.format(AuthConstant.TOKEN_PREFIX, client(), token));
     }
 
     /**

@@ -26,8 +26,9 @@ import java.util.concurrent.TimeUnit;
 public class AuthUtil implements ApplicationContextAware {
     private final AuthConfigure authConfigure;
     private final Redis redis;
-
     private final Map<String, XcAuthInterface> beans = Maps.newHashMap();
+
+    private ApplicationContext applicationContext;
 
     /**
      * 创建 Token
@@ -96,6 +97,13 @@ public class AuthUtil implements ApplicationContextAware {
 
         String key = String.format(AuthConstant.USER_PREFIX, u.getClient(), u.getAccount());
         AuthConfigure.Configure configure = authConfigure.getConfigureByClient(u.getClient());
+
+        if (beans.isEmpty()) {
+            Map<String, XcAuthInterface> map = applicationContext.getBeansOfType(XcAuthInterface.class);
+            Assert.notEmpty(map, "未找到XcAuthInterface接口的实现");
+            map.forEach((k, v) -> beans.put(v.client(), v));
+        }
+
         XcAuthInterface xcAuthInterface = beans.get(u.getClient());
         XcBaseUser user = xcAuthInterface.select(u.getAccount());
         Assert.isTrue(xcAuthInterface.checkUser(user), "用户异常");
@@ -118,9 +126,7 @@ public class AuthUtil implements ApplicationContextAware {
 
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
-        AuthConstant.redis = applicationContext.getBean(Redis.class);
-        Map<String, XcAuthInterface> map = applicationContext.getBeansOfType(XcAuthInterface.class);
-        Assert.notEmpty(map, "请先实现XcAuthInterceptor接口");
-        map.forEach((k, v) -> beans.put(v.client(), v));
+        AuthConstant.REDIS = applicationContext.getBean(Redis.class);
+        this.applicationContext = applicationContext;
     }
 }
