@@ -7,7 +7,6 @@ import `fun`.fan.xc.starter.out.R
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.core.annotation.Order
-import org.springframework.dao.DataAccessException
 import org.springframework.http.HttpStatus
 import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.web.bind.MethodArgumentNotValidException
@@ -72,13 +71,6 @@ class XcGlobalExceptionHandler {
     fun illegalArgumentExceptionHandler(e: IllegalArgumentException, request: HttpServletRequest): Any {
         log.error("${request.requestURI} - 业务异常: ${e.message}")
         return R.fail<Any>(ReturnCode.SYSTEM_ERROR).message(e.message)
-    }
-
-    @Order(0)
-    @ExceptionHandler(value = [DataAccessException::class])
-    fun sqlExceptionHandler(e: DataAccessException, request: HttpServletRequest): Any {
-        log.error("${request.requestURI} - 数据库执行异常: ${e.message}")
-        return R.fail<Any>(ReturnCode.DB_ERROR)
     }
 
     @Order(9)
