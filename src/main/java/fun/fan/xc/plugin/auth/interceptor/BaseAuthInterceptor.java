@@ -74,6 +74,9 @@ public class BaseAuthInterceptor implements HandlerInterceptor {
             // 权限校验
             AuthPermission annotation = hm.getMethodAnnotation(AuthPermission.class);
             if (Objects.isNull(annotation)) {
+                annotation = hm.getBeanType().getAnnotation(AuthPermission.class);
+            }
+            if (Objects.isNull(annotation)) {
                 return true;
             }
             String[] users = annotation.user();
