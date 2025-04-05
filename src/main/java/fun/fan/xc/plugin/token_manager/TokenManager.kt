@@ -2,8 +2,7 @@ package `fun`.fan.xc.plugin.token_manager
 
 interface TokenManager {
     /**
-     * token key
-     * 用于唯一标识
+     * 用于唯一标识, 用于区分多个Token管理任务, 打印日志的
      */
     fun key(): String
 
@@ -18,7 +17,7 @@ interface TokenManager {
     fun expires(): Long
 
     /**
-     * 初始化Token
+     * 初始化方法, 会在项目启动时调用
      */
     fun init()
 

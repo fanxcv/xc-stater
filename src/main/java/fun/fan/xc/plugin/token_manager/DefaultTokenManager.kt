@@ -42,7 +42,7 @@ abstract class DefaultTokenManager : BaseTokenManager() {
     override fun init() {
         this.entity.updateCount.set(Int.MIN_VALUE)
         this.updateCount.set(Int.MIN_VALUE)
-        this.checkTokenUpdate()
+        // this.checkTokenUpdate()
     }
 
     override fun refresh() {
