@@ -14,6 +14,9 @@ class OfficialJsApiTicketManager(
     private val weiXinApiClient: OfficialWeiXinApiClient?,
     private val accessTokenManager: OfficialAccessTokenManager
 ) : DefaultTokenManager() {
+    override fun init() {
+        // 重写是为了禁止 禁止启动时获取js ticket
+    }
 
     override fun key() = "officialJsApiTicket"
 

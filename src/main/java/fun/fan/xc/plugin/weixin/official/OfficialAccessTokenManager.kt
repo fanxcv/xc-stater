@@ -15,6 +15,11 @@ class OfficialAccessTokenManager(
     private val config: WeiXinConfig,
     private val weiXinApiClient: OfficialWeiXinApiClient?
 ) : DefaultTokenManager() {
+    override fun init() {
+        if (config.official.isCheckTokenWhenStart) {
+            super.init()
+        }
+    }
 
     override fun key() = "officialAccessToken"
 

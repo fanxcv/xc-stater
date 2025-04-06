@@ -53,6 +53,10 @@ public class WeiXinConfig {
          * 微信公众号APP Secret
          */
         private String appSecret = Dict.BLANK;
+        /**
+         * 启动时获取并检查AccessToken
+         */
+        private boolean checkTokenWhenStart = true;
     }
 
     @Data
@@ -69,7 +73,10 @@ public class WeiXinConfig {
          * 微信小程序APP Secret
          */
         private String appSecret = Dict.BLANK;
-
+        /**
+         * 启动时获取并检查AccessToken
+         */
+        private boolean checkTokenWhenStart = true;
         /**
          * 小程序支付相关
          */

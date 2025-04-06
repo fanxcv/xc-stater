@@ -21,6 +21,12 @@ class ProgramAccessTokenManager(
     private val weiXinApiClient: ProgramWeiXinApiClient?
 ) : DefaultTokenManager() {
 
+    override fun init() {
+        if (config.miniProgram.isCheckTokenWhenStart) {
+            super.init()
+        }
+    }
+
     override fun key() = "programAccessToken"
 
     override fun requestToken() {
