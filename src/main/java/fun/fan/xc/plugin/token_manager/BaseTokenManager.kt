@@ -4,6 +4,7 @@ import com.alibaba.fastjson2.JSONObject
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.InitializingBean
+import org.springframework.util.Assert
 
 /**
  * 基于AtomicInteger实现的TokenManager, 仅适用于单机部署使用
@@ -23,10 +24,7 @@ abstract class BaseTokenManager : TokenManager, InitializingBean {
         entity: TokenManager.BaseTokenEntity, json: String, tokenKey: String, expiresKey: String
     ) {
         // 先判断是否正确获取到tokenKey了
-        if (!json.contains(tokenKey)) {
-            log.error("{}: 请求Token失败了, response: {}", key(), json)
-            return
-        }
+        Assert.isTrue(json.contains(tokenKey), "${key()}: 请求Token失败了, response: $json")
 
         val time = System.currentTimeMillis()
         val map: JSONObject = JSONObject.parse(json)
@@ -34,10 +32,7 @@ abstract class BaseTokenManager : TokenManager, InitializingBean {
 
         // map["expires"]是处理client端的
         val expiresTime = map.getLong(expiresKey) ?: map.getLong("expires")
-        if (expiresTime == null || expiresTime == 0L) {
-            log.error("{}: 获取到的Token无效: {}", key(), json)
-            return
-        }
+        Assert.isTrue(expiresTime != null && expiresTime > 0L, "${key()}: 获取到的Token无效: $json")
 
         // 提前30秒就触发同步刷新
         entity.expires = time + (expiresTime - 30L) * 1000L
