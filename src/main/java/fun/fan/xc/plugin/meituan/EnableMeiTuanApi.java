@@ -15,7 +15,6 @@ import java.lang.annotation.*;
 @Import({
         MtTokenService.class,
         MtRedisTokenManager.class,
-        MtLocalTokenManager.class,
 })
 @EnableConfigurationProperties(MtConfig.class)
 public @interface EnableMeiTuanApi {

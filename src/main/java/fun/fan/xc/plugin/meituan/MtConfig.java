@@ -24,8 +24,4 @@ public class MtConfig {
      * 业务ID
      */
     private Integer businessId;
-    /**
-     * token缓存模式, redis(多服务器) 或者 local(单机)
-     */
-    private String mode = "local";
 }

@@ -12,7 +12,7 @@ abstract class MtBaseTokenManager(
 ) : MtTokenManager {
     protected val log: Logger = LoggerFactory.getLogger(this::class.java)
 
-    override fun initToken(code: String) {
+    override fun initToken(code: String, key: String?): JSONObject {
         mutableMapOf<String, Any?>(
             "developerId" to config.developerId,
             "businessId" to config.businessId,
@@ -20,10 +20,10 @@ abstract class MtBaseTokenManager(
             "grantType" to "authorization_code",
             "charset" to "UTF-8",
             "code" to code,
-        ).let { doRequest(MtUtils.TOKEN_URI, it) }
+        ).let { return doRequest(key, MtUtils.TOKEN_URI, it) }
     }
 
-    protected fun doRefresh(refreshToken: String?) {
+    protected fun doRefresh(refreshToken: String?, key: String?) {
         mutableMapOf<String, Any?>(
             "developerId" to config.developerId,
             "businessId" to config.businessId,
@@ -32,7 +32,7 @@ abstract class MtBaseTokenManager(
             "grantType" to "refresh_token",
             "charset" to "UTF-8",
             "scope" to "all"
-        ).let { doRequest(MtUtils.REFRESH_URI, it) }
+        ).let { doRequest(key, MtUtils.REFRESH_URI, it) }
     }
 
     protected fun requestToken(uri: String, params: MutableMap<String, Any?>): JSONObject {
@@ -47,5 +47,5 @@ abstract class MtBaseTokenManager(
         return data
     }
 
-    abstract fun doRequest(uri: String, params: MutableMap<String, Any?>)
+    abstract fun doRequest(key: String?, uri: String, params: MutableMap<String, Any?>): JSONObject
 }

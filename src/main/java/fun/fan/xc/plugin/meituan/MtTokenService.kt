@@ -1,5 +1,6 @@
 package `fun`.fan.xc.plugin.meituan
 
+import com.alibaba.fastjson2.JSONObject
 import org.springframework.context.annotation.Lazy
 import org.springframework.stereotype.Component
 
@@ -37,10 +38,10 @@ class MtTokenService(
 
     /**
      * 授权回调
+     * @param code 授权码
+     * @param key 用于区分不同的商户授权码的Key, 不传或默认获取opBizCode作为Key
      */
-    fun authCallback(code: String) {
-        tokenManager.initToken(code)
-    }
+    fun authCallback(code: String, key: String?): JSONObject = tokenManager.initToken(code, key)
 
-    fun token() = tokenManager.getToken()
+    fun token(key: String) = tokenManager.getToken(key)
 }
