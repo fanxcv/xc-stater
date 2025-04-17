@@ -1,6 +1,6 @@
-package `fun`.fan.xc.plugin.token_manager
+package `fun`.fan.xc.plugin.weixin.token
 
-interface TokenManager {
+interface WeiXinTokenManager {
     /**
      * 用于唯一标识, 用于区分多个Token管理任务, 打印日志的
      */

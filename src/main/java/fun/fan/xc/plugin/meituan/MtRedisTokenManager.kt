@@ -13,15 +13,15 @@ class MtRedisTokenManager(
     config: MtConfig,
     private val redis: Redis
 ) : MtBaseTokenManager(config) {
-    private val lock = "meituan:token:lock:"
-    private val key = "meituan:token:value:"
+    private val lock = "xc:meituan:token:lock:"
+    private val key = "xc:meituan:token:value:"
     private val map = HashMap<String, Long>()
 
     override fun refreshToken(key: String) {
         val now = System.currentTimeMillis()
 
         if (map[key] == null) {
-            map[key] = redis.hGet(this.key + key, "refresh")
+            map[key] = redis.hGet(this.key + key, "refresh") ?: 0L
         }
 
         if ((map[key] ?: 0L) > now) {

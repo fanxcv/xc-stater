@@ -1,6 +1,6 @@
 package `fun`.fan.xc.plugin.weixin
 
-import `fun`.fan.xc.plugin.token_manager.TokenManager
+import `fun`.fan.xc.plugin.weixin.token.WeiXinTokenManager
 import `fun`.fan.xc.starter.out.R
 import org.apache.commons.lang3.StringUtils
 import org.slf4j.Logger
@@ -18,32 +18,32 @@ import java.util.stream.Collectors
 @ConditionalOnBean(WeixinServerEnable::class)
 @RequestMapping("\${xc.weixin.server.base-path:${WeiXinDict.WX_BASE_PATH}}")
 class WeiXinApiController(
-    private val config: WeiXinConfig
+  private val config: WeiXinConfig
 ) : InitializingBean, ApplicationContextAware {
-    private val log: Logger = LoggerFactory.getLogger(this::class.java)
+  private val log: Logger = LoggerFactory.getLogger(this::class.java)
 
-    private lateinit var tokenMangers: Collection<TokenManager>
+  private lateinit var tokenMangers: Collection<WeiXinTokenManager>
 
-    /**
-     * 获取所有token
-     * @return accessToken和jsTicket
-     */
-    @GetMapping("token")
-    fun getToken(): R<Map<String, Any>> {
-        return R.success(
-            tokenMangers.stream().collect(
-                Collectors.toMap({ it.key() }, { it.token() })
-            )
-        )
-    }
+  /**
+   * 获取所有token
+   * @return accessToken和jsTicket
+   */
+  @GetMapping("token")
+  fun getToken(): R<Map<String, Any>> {
+    return R.success(
+      tokenMangers.stream().collect(
+        Collectors.toMap({ it.key() }, { it.token() })
+      )
+    )
+  }
 
-    override fun afterPropertiesSet() {
-        val path =
-            if (StringUtils.isNotBlank(config.server.basePath)) config.server.basePath else WeiXinDict.WX_BASE_PATH
-        log.info("===> weixin: Public api is running, entrypoint: $path/{api}")
-    }
+  override fun afterPropertiesSet() {
+    val path =
+      if (StringUtils.isNotBlank(config.server.basePath)) config.server.basePath else WeiXinDict.WX_BASE_PATH
+    log.info("===> weixin: Public api is running, entrypoint: $path/{api}")
+  }
 
-    override fun setApplicationContext(applicationContext: ApplicationContext) {
-        this.tokenMangers = applicationContext.getBeansOfType(TokenManager::class.java).values
-    }
+  override fun setApplicationContext(applicationContext: ApplicationContext) {
+    this.tokenMangers = applicationContext.getBeansOfType(WeiXinTokenManager::class.java).values
+  }
 }
