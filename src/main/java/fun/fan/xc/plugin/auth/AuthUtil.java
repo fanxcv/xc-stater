@@ -4,6 +4,7 @@ import cn.hutool.core.lang.Assert;
 import cn.hutool.core.lang.UUID;
 import com.google.common.collect.Maps;
 import fun.fan.xc.plugin.redis.Redis;
+import fun.fan.xc.starter.XcConfiguration;
 import fun.fan.xc.starter.exception.XcToolsException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @RequiredArgsConstructor
 public class AuthUtil implements ApplicationContextAware {
-    private final AuthConfigure authConfigure;
+    private final XcConfiguration configuration;
     private final Redis redis;
     private final Map<String, XcAuthInterface> beans = Maps.newHashMap();
 
@@ -39,7 +40,7 @@ public class AuthUtil implements ApplicationContextAware {
     public String createToken(XcBaseUser user) {
         String token = UUID.fastUUID().toString(true);
         String client = Optional.ofNullable(user.getClient()).orElse(AuthConstant.DEFAULT_CLIENT);
-        AuthConfigure.Configure configure = authConfigure.getConfigureByClient(client);
+        XcConfiguration.Configure configure = configuration.getConfigureByClient(client);
         redis.setEx(String.format(AuthConstant.TOKEN_PREFIX, client, token), user.getAccount(), configure.getExpires().getSeconds());
         user.setToken(token);
         // TODO 同时登陆限制
@@ -52,7 +53,7 @@ public class AuthUtil implements ApplicationContextAware {
      * @param token Token
      */
     public void updateToken(String token, String client) {
-        AuthConfigure.Configure configure = authConfigure.getConfigureByClient(client);
+        XcConfiguration.Configure configure = configuration.getConfigureByClient(client);
         redis.expire(String.format(AuthConstant.TOKEN_PREFIX, client, token), configure.getExpires().getSeconds());
     }
 
@@ -96,7 +97,7 @@ public class AuthUtil implements ApplicationContextAware {
         }
 
         String key = String.format(AuthConstant.USER_PREFIX, u.getClient(), u.getAccount());
-        AuthConfigure.Configure configure = authConfigure.getConfigureByClient(u.getClient());
+        XcConfiguration.Configure configure = configuration.getConfigureByClient(u.getClient());
 
         if (beans.isEmpty()) {
             Map<String, XcAuthInterface> map = applicationContext.getBeansOfType(XcAuthInterface.class);

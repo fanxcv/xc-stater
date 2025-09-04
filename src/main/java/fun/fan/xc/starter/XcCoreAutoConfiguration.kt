@@ -1,5 +1,6 @@
 package `fun`.fan.xc.starter
 
+import com.alibaba.fastjson2.JSONObject
 import `fun`.fan.xc.starter.adapter.XcRequestMappingHandlerAdapter
 import `fun`.fan.xc.starter.converters.JsonArray2ListGenericConverter
 import `fun`.fan.xc.starter.converters.JsonObject2EntityConverterFactory
@@ -62,5 +63,7 @@ open class XcCoreAutoConfiguration : WebMvcRegistrations, WebMvcConfigurer, Appl
         val configuration = applicationContext.getBean(XcConfiguration::class.java)
         this.applicationContext = applicationContext
         config = configuration.core
+
+        log.info("===> core: use config: {}", JSONObject.toJSONString(configuration))
     }
 }

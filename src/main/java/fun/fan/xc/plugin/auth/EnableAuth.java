@@ -1,7 +1,6 @@
 package fun.fan.xc.plugin.auth;
 
 import fun.fan.xc.plugin.redis.EnableRedis;
-import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.context.annotation.Import;
 
 import java.lang.annotation.*;
@@ -17,6 +16,5 @@ import java.lang.annotation.*;
         AuthUtil.class,
         AuthAutoConfigure.class
 })
-@ImportAutoConfiguration(AuthConfigure.class)
 public @interface EnableAuth {
 }

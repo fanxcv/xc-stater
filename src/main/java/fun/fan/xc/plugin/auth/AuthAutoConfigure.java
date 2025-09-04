@@ -5,6 +5,7 @@ import com.google.common.collect.Lists;
 import fun.fan.xc.plugin.auth.interceptor.BaseAuthInterceptor;
 import fun.fan.xc.plugin.auth.resolver.UserHandlerMethodArgumentResolver;
 import fun.fan.xc.plugin.redis.Redis;
+import fun.fan.xc.starter.XcConfiguration;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +29,7 @@ import java.util.Set;
 @Slf4j
 @RequiredArgsConstructor
 public class AuthAutoConfigure implements WebMvcConfigurer, ApplicationContextAware {
-    private final AuthConfigure authConfigure;
+    private final XcConfiguration configuration;
     private final AuthUtil authUtil;
     private final Redis redis;
 
@@ -36,13 +37,13 @@ public class AuthAutoConfigure implements WebMvcConfigurer, ApplicationContextAw
 
     @Override
     public void addInterceptors(@NonNull InterceptorRegistry registry) {
-        Assert.notNull(authConfigure, "请检查认证信息配置是否正确, 相关配置为: xc.authentication");
+        Assert.notNull(configuration, "请检查认证信息配置是否正确, 相关配置为: xc.authentication");
         beans.forEach((k, v) -> {
-            AuthConfigure.Configure configure = v.getConfigure(authConfigure);
+            XcConfiguration.Configure configure = v.getConfigure(configuration);
             Set<String> excludePath = configure.getExcludePath();
             excludePath.addAll(AuthConstant.BASE_EXCLUDE_PATH);
             log.info("===> auth: init xc-boot-auth in {}, exclude {}", configure.getPath(), configure.getExcludePath());
-            registry.addInterceptor(new BaseAuthInterceptor(redis, authUtil, authConfigure, v))
+            registry.addInterceptor(new BaseAuthInterceptor(redis, authUtil, configuration, v))
                     .excludePathPatterns(Lists.newLinkedList(excludePath))
                     .addPathPatterns(configure.getPath())
                     .order(Ordered.HIGHEST_PRECEDENCE);

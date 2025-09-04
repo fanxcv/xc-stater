@@ -41,7 +41,11 @@ open class IpWhiteListCheckChain(private val config: XcConfiguration) : Abstract
             if (v.ip == null) {
                 v.ip = computedIp(v.request)
             }
-            return Tools.ipIsInCidr(v.ip, checkList)
+            val checkRes = Tools.ipIsInCidr(v.ip, checkList)
+            if (!checkRes) {
+                log.warn("===> gateway: [IpWhiteListCheck] url: $url check fail! ip: ${v.ip}, check list: $checkList")
+            }
+            return checkRes
         }
         return false
     }
@@ -51,7 +55,7 @@ open class IpWhiteListCheckChain(private val config: XcConfiguration) : Abstract
      */
     @Synchronized
     private fun initCheckList(handler: HandlerMethod, url: String): Set<String> {
-        log.debug("init {} check list", handler.toString())
+        log.debug("init {}:{} check list", handler.toString(), url)
         // 每次都去配置文件对象中获取,避免刷新后获取到历史配置
         val whiteList = getConfigMap()
         // 1. 默认需要添加DEFAULT的权限
@@ -82,7 +86,7 @@ open class IpWhiteListCheckChain(private val config: XcConfiguration) : Abstract
             return configMap
         }
 
-        val map = Maps.newHashMap<String, List<String>>()
+        val map = Maps.newLinkedHashMap<String, List<String>>()
         config.gateway?.whiteIps?.forEach {
             map[it.path] = it.ips
         }

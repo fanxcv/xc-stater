@@ -7,6 +7,7 @@ import fun.fan.xc.plugin.auth.*;
 import fun.fan.xc.plugin.auth.annotation.AuthIgnore;
 import fun.fan.xc.plugin.auth.annotation.AuthPermission;
 import fun.fan.xc.plugin.redis.Redis;
+import fun.fan.xc.starter.XcConfiguration;
 import fun.fan.xc.starter.enums.ReturnCode;
 import fun.fan.xc.starter.exception.XcServiceException;
 import lombok.NonNull;
@@ -31,7 +32,7 @@ import java.util.concurrent.TimeUnit;
 public class BaseAuthInterceptor implements HandlerInterceptor {
     private final Redis redis;
     private final AuthUtil authUtil;
-    private final AuthConfigure authConfigure;
+    private final XcConfiguration configuration;
     private final XcAuthInterface xcAuthInterface;
 
     @Override
@@ -45,7 +46,7 @@ public class BaseAuthInterceptor implements HandlerInterceptor {
         if (Objects.isNull(authIgnore)) {
             authIgnore = hm.getBeanType().getAnnotation(AuthIgnore.class);
         }
-        AuthConfigure.Configure configure = xcAuthInterface.getConfigure(authConfigure);
+        XcConfiguration.Configure configure = xcAuthInterface.getConfigure(configuration);
         String client = xcAuthInterface.client();
         // Token校验
         String token = xcAuthInterface.getToken(configure, request);
@@ -152,7 +153,7 @@ public class BaseAuthInterceptor implements HandlerInterceptor {
         // 查询用户权限
         String key = String.format(AuthConstant.PERMISSION_PREFIX, user.getClient(), user.getAccount());
         if (!redis.exists(key)) {
-            AuthConfigure.Configure configure = authConfigure.getConfigureByClient(client);
+            XcConfiguration.Configure configure = configuration.getConfigureByClient(client);
             Set<String> permissions = Optional.ofNullable(xcAuthInterface.selectPermissions(user)).orElse(new HashSet<>());
             redis.sAddEx(key, configure.getExpires().getSeconds(), TimeUnit.SECONDS, permissions.toArray());
         }

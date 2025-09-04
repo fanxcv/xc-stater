@@ -1,18 +1,17 @@
 package fun.fan.xc.starter;
 
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import fun.fan.xc.plugin.auth.AuthConstant;
+import fun.fan.xc.starter.exception.XcServiceException;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.time.Duration;
+import java.util.*;
 
 /**
  * @author fan
@@ -21,15 +20,16 @@ import java.util.Set;
 @Configuration
 @NoArgsConstructor
 @AllArgsConstructor
-@ConfigurationProperties(XcConfiguration.PREFIX)
+@ConfigurationProperties("xc")
 public class XcConfiguration {
-    public static final String PREFIX = "xc";
-
     /**
      * 核心配置
      */
     private CoreConfig core = new CoreConfig();
-
+    /**
+     * 认证配置
+     */
+    private Map<String, Configure> authentication;
     /**
      * 跨域配置
      */
@@ -43,6 +43,14 @@ public class XcConfiguration {
      * 网关配置
      */
     private GatewayConfig gateway;
+
+
+    /**
+     * 不同端获取相应的配置
+     */
+    public Configure getConfigureByClient(String client) {
+        return Optional.ofNullable(authentication.get(client)).orElseThrow(() -> new XcServiceException("未找到配置"));
+    }
 
     @Data
     public static class CoreConfig {
@@ -132,5 +140,37 @@ public class XcConfiguration {
          * 允许的IP列表，支持cidr
          */
         private List<String> ips = Lists.newArrayList();
+    }
+
+    @Data
+    public static class Configure {
+        /**
+         * 需要拦截的请求路径
+         */
+        private List<String> path = Lists.newArrayList("/**");
+        /**
+         * 拦截器排除路径
+         */
+        private Set<String> excludePath = Sets.newHashSet(AuthConstant.BASE_EXCLUDE_PATH);
+        /**
+         * Token Header名
+         */
+        private String tokenName = "X-Token";
+        /**
+         * Token有效期，默认两小时
+         */
+        private Duration expires = Duration.ofHours(2);
+        /**
+         * 用户缓存时间，默认30分钟
+         */
+        private Duration userCacheExpires = Duration.ofMinutes(30);
+        /**
+         * 同时允许在线用户数, 0为不限制
+         */
+        private int allowedOnline = 0;
+        /**
+         * 是否使用redis缓存用户信息
+         */
+        private boolean userCache = true;
     }
 }

@@ -1,5 +1,7 @@
 package fun.fan.xc.plugin.auth;
 
+import fun.fan.xc.starter.XcConfiguration;
+
 import javax.servlet.http.HttpServletRequest;
 import java.util.Set;
 
@@ -23,14 +25,14 @@ public interface XcAuthInterface {
      * @param request request
      * @return token
      */
-    default String getToken(AuthConfigure.Configure configure, HttpServletRequest request) {
+    default String getToken(XcConfiguration.Configure configure, HttpServletRequest request) {
         return request.getHeader(configure.getTokenName());
     }
 
     /**
      * 通过Token换取account
      *
-     * @param token  Token
+     * @param token Token
      * @return account
      */
     default String getAccount(String token) {
@@ -52,7 +54,7 @@ public interface XcAuthInterface {
      *
      * @return 配置对象
      */
-    default AuthConfigure.Configure getConfigure(AuthConfigure configure) {
+    default XcConfiguration.Configure getConfigure(XcConfiguration configure) {
         return configure.getConfigureByClient(this.client());
     }
 

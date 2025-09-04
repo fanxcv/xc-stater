@@ -14,7 +14,6 @@ import org.springframework.beans.factory.BeanFactoryAware
 import org.springframework.beans.factory.InitializingBean
 import org.springframework.boot.autoconfigure.AutoConfigureAfter
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
 import org.springframework.lang.NonNull
@@ -59,7 +58,7 @@ class DefaultGatewayHandler : XcGatewayHandler, BeanFactoryAware, InitializingBe
             .addChain(beanFactory!!.getBean(IpBlackListCheckChain::class.java))
             .addChain(beanFactory!!.getBean(IpWhiteListCheckChain::class.java))
             .build()
-        log.info("===> init default xc gateway chain: {}", gatewayChain?.chain())
+        log.info("===> gateway: init default chain: {}", gatewayChain?.chain())
     }
 
     @Data
