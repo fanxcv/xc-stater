@@ -54,16 +54,18 @@ object WeiXinUtils {
   }
 
   fun parseAndUpdateToken(
-    entity: WeiXinTokenManager.BaseTokenEntity, key: String, json: String
+    entity: WeiXinTokenManager.BaseTokenEntity, key: String,
+    tokenKey: String = "access_token", expiresKey: String = "expires_in",
+    json: String
   ) {
     // 先判断是否正确获取到tokenKey了
-    Assert.isTrue(json.contains("access_token"), "$key: 请求Token失败了, response: $json")
+    Assert.isTrue(json.contains(tokenKey), "$key: 请求Token失败了, response: $json")
 
     val map: JSONObject = JSONObject.parse(json)
-    entity.token = map.getString("access_token")
+    entity.token = map.getString(tokenKey)
 
     // map["expires"]是处理client端的
-    val expiresTime = map.getLong("expires_in") ?: map.getLong("expires")
+    val expiresTime = map.getLong(expiresKey)
     Assert.isTrue(expiresTime != null && expiresTime > 0L, "$key: 获取到的Token无效: $json")
 
     val now = System.currentTimeMillis()

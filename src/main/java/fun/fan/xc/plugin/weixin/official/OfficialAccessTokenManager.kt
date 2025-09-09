@@ -28,7 +28,7 @@ class OfficialAccessTokenManager(
   override fun key() = key
 
   override fun doRefresh(entity: TokenEntity) {
-    request.fetchToken(key, entity) { requestToken() }
+    request.fetchToken(key, "access_token", "expires_in", entity) { requestToken() }
   }
 
   fun requestToken(): String {

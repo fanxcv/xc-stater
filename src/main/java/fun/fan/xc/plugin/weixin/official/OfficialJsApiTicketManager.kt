@@ -24,9 +24,12 @@ class OfficialJsApiTicketManager(
   override fun key() = key
 
   override fun doRefresh(entity: TokenEntity) {
-    request.fetchToken(key, entity) { requestToken() }
+    request.fetchToken(key, "ticket", "expires_in", entity) { requestToken() }
   }
 
+  /**
+   * {"errcode":0,"errmsg":"ok","ticket":"O3SMpm8bG7kJnF36aXbe83eu82txrSCxLjqh0_HNKTvgOFk2GHik_LTBoNpiTz6pbwAft8Or83E71HCRCCDh_w","expires_in":7200}
+   */
   fun requestToken(): String {
     log.info("===> weixin: request jsApiTicket")
     return weiXinApiClient?.jsTicket()

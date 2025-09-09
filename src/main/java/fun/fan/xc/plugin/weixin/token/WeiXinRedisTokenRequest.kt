@@ -16,7 +16,7 @@ class WeiXinRedisTokenRequest(private val redis: Redis) : WeiXinTokenRequest {
   private val lock = "xc:weixin:token:lock:"
   private val key = "xc:weixin:token:value:"
 
-  override fun fetchToken(key: String, entity: WeiXinBaseTokenManager.TokenEntity, fn: () -> String) {
+  override fun fetchToken(key: String, tokenKey: String, expiresKey: String, entity: WeiXinBaseTokenManager.TokenEntity, fn: () -> String) {
     val k = this.key + key
 
     if (checkCacheToken(k, entity)) {
@@ -33,7 +33,7 @@ class WeiXinRedisTokenRequest(private val redis: Redis) : WeiXinTokenRequest {
       if (checkCacheToken(k, entity)) {
         return
       }
-      WeiXinUtils.parseAndUpdateToken(entity, key, fn())
+      WeiXinUtils.parseAndUpdateToken(entity, key, tokenKey, expiresKey, fn())
       redis.hSet(k, "accessToken", entity.token)
       redis.hSet(k, "expires", entity.expires)
       redis.hSet(k, "refresh", entity.refresh)
