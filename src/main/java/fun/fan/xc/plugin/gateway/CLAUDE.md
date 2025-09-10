@@ -1,73 +1,45 @@
-# 网关模块 (fun.fan.xc.plugin.gateway)
+# 网关路由模块 (gateway)
 
 ## 模块职责
 
-该模块提供了API网关功能，包括API分组管理、权限校验、IP黑白名单检查等。
+网关路由模块提供了可扩展的网关链式处理机制，支持通过责任链模式对请求进行处理。该模块可以用于实现 IP 黑白名单检查、请求过滤、权限校验等功能。
 
 ## 核心组件
 
-### 核心类
-- `XcGatewayHandler`: 网关处理器接口
-- `DefaultGatewayHandler`: 默认网关处理器实现
-- `ApiGroup`: API分组注解
-- `ApiCheck`: API检查注解
+### 1. 启动注解
+- `@EnableXcGateway`: 启用网关功能的注解
 
-### 责任链类
-- `AbstractGatewayChain`: 网关责任链接口
-- `AbstractIpCheckChain`: IP检查责任链基类
-- `IpWhiteListCheckChain`: IP白名单检查链
-- `IpBlackListCheckChain`: IP黑名单检查链
+### 2. 核心类
+- `AbstractGatewayChain`: 网关链抽象基类，定义了链式处理的基本结构和方法
+- `DefaultGatewayHandler`: 默认网关处理器，自动配置IP黑白名单检查链
 
-## 关键文件
+### 3. 链式处理实现类
+- `AbstractIpCheckChain`: IP 检查链抽象类
+- `IpBlackListCheckChain`: IP 黑名单检查链
+- `IpWhiteListCheckChain`: IP 白名单检查链
 
-### 核心类
-- `XcGatewayHandler.kt`: 网关处理器接口，定义了网关处理方法
-- `DefaultGatewayHandler.kt`: 默认网关处理器实现，提供默认的网关处理逻辑
-- `ApiGroup.kt`: API分组注解，用于标记API分组
-- `ApiCheck.kt`: API检查注解，用于标记需要检查的API
+## 核心功能
 
-### 责任链类
-- `AbstractGatewayChain.kt`: 网关责任链接口，定义了责任链的基本方法
-- `AbstractIpCheckChain.kt`: IP检查责任链基类，提供IP检查的通用逻辑
-- `IpWhiteListCheckChain.kt`: IP白名单检查链，实现白名单检查逻辑
-- `IpBlackListCheckChain.kt`: IP黑名单检查链，实现黑名单检查逻辑
+### 1. 链式处理机制
+- 支持通过责任链模式对请求进行处理
+- 可以动态添加或移除处理链
+- 支持自定义处理逻辑
 
-## 接口规范
+### 2. IP 黑白名单检查
+- 提供了 IP 黑名单检查功能
+- 提供了 IP 白名单检查功能
 
-### 网关处理规范
-1. 实现XcGatewayHandler接口
-2. 提供完整的API分组管理
-3. 支持注解方式配置
-4. 实现责任链模式处理
+### 3. 默认处理链
+- 默认配置了IP黑名单检查链和IP白名单检查链
+- 处理链顺序：IP黑名单校验 -> IP白名单校验
 
-### 责任链规范
-1. 继承AbstractGatewayChain基类
-2. 实现具体的处理逻辑
-3. 支持链式调用
-4. 提供灵活的扩展机制
+## 使用方式
 
-## 依赖关系
+1. 在 Spring Boot 启动类上添加 `@EnableXcGateway` 注解
+2. 继承 `AbstractGatewayChain` 类实现自定义处理逻辑
+3. 通过 `AbstractGatewayChain.builder()` 构建处理链
+4. 调用 `exec()` 方法执行链式处理
 
-### 外部依赖
-- `Spring Boot`: Spring框架
-- `FastJSON2`: JSON处理
+## 依赖模块
 
-### 内部依赖
-- `fun.fan.xc.starter`: 核心启动模块
-- `fun.fan.xc.starter.utils`: 工具类
-- `fun.fan.xc.starter.exception`: 异常处理
-
-## 测试要点
-
-1. 网关处理器的功能测试
-2. API分组管理的正确性测试
-3. IP黑白名单检查的准确性测试
-4. 责任链模式的链式调用测试
-
-## 编码规范
-
-1. 使用Kotlin编写业务逻辑
-2. 遵循Spring Boot的注解规范
-3. 提供完整的日志记录
-4. 实现统一的异常处理
-5. 使用责任链模式优化处理流程
+- 无特定依赖模块

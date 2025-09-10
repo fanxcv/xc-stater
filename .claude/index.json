@@ -1,0 +1,120 @@
+{
+  "timestamp": "2025-09-01T15:30:00Z",
+  "project": "xc-stater",
+  "modules": [
+    {
+      "path": "src/main/java/fun/fan/xc/starter",
+      "language": "Java/Kotlin",
+      "entry": "XcCoreAutoConfiguration.kt",
+      "hasTests": false,
+      "hasConfig": true,
+      "coverage": "high",
+      "interfaces": [
+        "XcConfiguration.java",
+        "NetUtils.kt",
+        "Event.kt"
+      ],
+      "models": [
+        "ReturnCode.kt"
+      ]
+    },
+    {
+      "path": "src/main/java/fun/fan/xc/plugin/auth",
+      "language": "Java",
+      "entry": "AuthAutoConfigure.java",
+      "hasTests": false,
+      "hasConfig": true,
+      "coverage": "high",
+      "interfaces": [
+        "XcAuthInterface.java",
+        "BaseAuthInterceptor.java"
+      ],
+      "models": [
+        "XcBaseUser.java",
+        "AuthConstant.java",
+        "AuthConfigure.java"
+      ]
+    },
+    {
+      "path": "src/main/java/fun/fan/xc/plugin/weixin",
+      "language": "Java/Kotlin",
+      "entry": "WeiXinConfig.java",
+      "hasTests": false,
+      "hasConfig": true,
+      "coverage": "high",
+      "interfaces": [
+        "BaseWeiXinApi.kt",
+        "WeiXinApiClient.kt",
+        "WeiXinApiController.kt"
+      ],
+      "models": [
+        "WeiXinConfig.java"
+      ]
+    },
+    {
+      "path": "src/main/java/fun/fan/xc/plugin/redis",
+      "language": "Java",
+      "entry": "RedisConfigure.java",
+      "hasTests": false,
+      "hasConfig": true,
+      "coverage": "medium",
+      "interfaces": [
+        "Redis.java",
+        "SpringRedisImpl.java"
+      ],
+      "models": []
+    },
+    {
+      "path": "src/main/java/fun/fan/xc/plugin/upload",
+      "language": "Java",
+      "entry": "UploadConfig.java",
+      "hasTests": false,
+      "hasConfig": true,
+      "coverage": "medium",
+      "interfaces": [
+        "MinioUtils.java"
+      ],
+      "models": []
+    },
+    {
+      "path": "src/main/java/fun/fan/xc/plugin/ca/mcs",
+      "language": "Java/Kotlin",
+      "entry": "McsConfig.java",
+      "hasTests": false,
+      "hasConfig": true,
+      "coverage": "high",
+      "interfaces": [
+        "McsClient.kt"
+      ],
+      "models": [
+        "Request.java",
+        "Response.java",
+        "McsBody.java"
+      ]
+    },
+    {
+      "path": "src/main/java/fun/fan/xc/plugin/drone",
+      "language": "Java/Kotlin",
+      "entry": "DroneBaseService.kt",
+      "hasTests": false,
+      "hasConfig": true,
+      "coverage": "high",
+      "interfaces": [
+        "DroneBuildService.kt",
+        "DroneRepoService.kt"
+      ],
+      "models": [
+        "Build.java",
+        "Repo.java",
+        "Stage.java"
+      ]
+    }
+  ],
+  "coverage": {
+    "totalFiles": 167,
+    "scannedFiles": 167,
+    "coveragePercent": 100,
+    "ignoredFiles": 0
+  },
+  "truncated": false
+}

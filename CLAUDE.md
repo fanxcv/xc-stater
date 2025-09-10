@@ -1,82 +1,118 @@
-# xc-starter 微信开发工具包
+# xc-starter 项目
 
 ## 项目摘要
 
-xc-starter 是一个基于 Spring Boot 的微信开发工具包，提供了对微信公众号和小程序的全面支持。该工具包封装了微信的各种 API 接口，包括但不限于：
+xc-starter 是一个基于 Spring Boot 的企业级开发工具包，提供了丰富的插件化功能模块。该项目旨在简化企业应用开发，提供了一套完整的解决方案，包括认证授权、微信开发、网关路由、数据处理等核心功能。
 
 ### 核心功能
-1. **认证与授权**：
-   - 公众号 OAuth2 登录
-   - 小程序登录 (code2Session)
-   - Access Token 和 JS Ticket 管理
-
-2. **支付功能**：
-   - 统一下单接口
-   - 退款接口
-   - 委托代扣（支付中签约、申请扣款、申请解约）
-   - 支付结果和退款结果通知处理
-
-3. **消息管理**：
-   - 客服消息发送（文本、图片）
-   - 模板消息发送
-   - 订阅消息发送
-
-4. **素材管理**：
-   - 临时素材上传
-
-5. **菜单管理**：
-   - 自定义菜单创建
-
-6. **二维码**：
-   - 公众号带参数二维码创建
-   - 小程序码生成
-
-该工具包设计了灵活的配置机制，支持服务端模式和客户端模式，并提供了基于 Redis 的分布式 Token 管理方案。
+1. **认证与授权**：提供了基于 Token 的认证机制和权限控制
+2. **微信开发工具包**：封装了微信公众号和小程序的 API 接口
+3. **网关路由**：实现了可扩展的网关链式处理机制
+4. **Redis 扩展**：提供了 Redis 相关的工具类和配置
+5. **MyBatis Plus 扩展**：增强了 MyBatis Plus 的功能
+6. **文件上传**：支持多种文件上传方式
+7. **短信服务**：集成了短信发送功能
+8. **协程支持**：提供了 Kotlin 协程的支持
 
 ## 架构总览
 
-### 模块结构
+```mermaid
+graph TD
+    A[xc-starter] --> B[core modules];
+    A --> C[plugin modules];
+
+    subgraph B [core modules]
+        B1[starter]
+    end
+
+    subgraph C [plugin modules]
+        C1[auth]
+        C2[weixin]
+        C3[gateway]
+        C4[redis]
+        C5[mybatis_plus]
+        C6[upload]
+        C7[sms]
+        C8[coroutines]
+        C9[baidu]
+        C10[ca]
+        C11[drone]
+        C12[scanner]
+        C13[meituan]
+    end
+
+    subgraph B1 [starter]
+        B1A[adapter]
+        B1B[advice]
+        B1C[annotation]
+        B1D[configuration]
+        B1E[converters]
+        B1F[enums]
+        B1G[event]
+        B1H[exception]
+        B1I[filter]
+        B1J[handler]
+        B1K[interceptor]
+        B1L[interfaces]
+        B1M[out]
+        B1N[processor]
+        B1O[utils]
+        B1P[wrapper]
+    end
+
+    subgraph C1 [auth]
+        C1A[annotation]
+        C1B[interceptor]
+        C1C[resolver]
+    end
+
+    subgraph C2 [weixin]
+        C2A[entity]
+        C2B[official]
+        C2C[program]
+        C2D[enums]
+        C2E[token]
+    end
+
+    subgraph C3 [gateway]
+        C3A[chain]
+    end
 ```
-fun.fan.xc.starter
-├── plugin.weixin
-│   ├── entity      # 微信相关的数据实体类
-│   ├── enums       # 微信相关的枚举类
-│   ├── token       # 微信 Token 管理相关类
-│   ├── official    # 微信公众号相关 API 和管理类
-│   └── program     # 微信小程序相关 API 和管理类
-└── config          # 核心启动配置和通用工具类
-```
-
-### 核心组件
-- `WeiXinConfig`：微信配置类，管理公众号、小程序、服务端、客户端的配置
-- `BaseWeiXinApi`：微信 API 基类，提供通用的 Token 获取和支付配置方法
-- `OfficialWeiXinApi`：公众号 API 实现类
-- `ProgramWeiXinApi`：小程序 API 实现类
-- `WeiXinBaseTokenManager`：Token 管理基类，实现了 Token 的自动刷新机制
-- `OfficialAccessTokenManager`：公众号 Access Token 管理器
-- `ProgramAccessTokenManager`：小程序 Access Token 管理器
-- `OfficialJsApiTicketManager`：公众号 JS Ticket 管理器
-
-### Token 管理机制
-- 使用 `ReentrantLock` 和 `AtomicInteger` 实现了线程安全的 Token 刷新机制
-- 支持本地模式（`WeiXinLocalTokenRequest`）和 Redis 分布式模式（`WeiXinRedisTokenRequest`）
-- 采用异步刷新策略，在 Token 过期前自动刷新
-
-### 支付安全
-- 使用 SSL Socket Factory 处理微信支付的 HTTPS 请求
-- 支持微信支付 V2 和 V3 的签名和验签
 
 ## 模块索引
 
 | 模块路径 | 职责 |
 | :--- | :--- |
-| `fun.fan.xc.starter` | 核心启动配置和通用工具类 |
-| `fun.fan.xc.plugin.weixin` | 微信插件核心包 |
-| `fun.fan.xc.plugin.weixin.entity` | 微信相关的数据实体类 |
-| `fun.fan.xc.plugin.weixin.enums` | 微信相关的枚举类 |
-| `fun.fan.xc.plugin.weixin.token` | 微信 Token 管理相关类 |
-| `fun.fan.xc.plugin.weixin.official` | 微信公众号相关 API 和管理类 |
-| `fun.fan.xc.plugin.weixin.program` | 微信小程序相关 API 和管理类 |
+| `fun.fan.xc.starter` | 核心启动模块 |
+| `fun.fan.xc.starter.adapter` | 适配器模块 |
+| `fun.fan.xc.starter.advice` | 异常处理模块 |
+| `fun.fan.xc.starter.annotation` | 注解模块 |
+| `fun.fan.xc.starter.configuration` | 配置模块 |
+| `fun.fan.xc.starter.converters` | 转换器模块 |
+| `fun.fan.xc.starter.enums` | 枚举模块 |
+| `fun.fan.xc.starter.event` | 事件处理模块 |
+| `fun.fan.xc.starter.exception` | 异常处理模块 |
+| `fun.fan.xc.starter.filter` | 过滤器模块 |
+| `fun.fan.xc.starter.handler` | 处理器模块 |
+| `fun.fan.xc.starter.interceptor` | 拦截器模块 |
+| `fun.fan.xc.starter.interfaces` | 接口定义模块 |
+| `fun.fan.xc.starter.out` | 输出处理模块 |
+| `fun.fan.xc.starter.processor` | 处理器模块 |
+| `fun.fan.xc.starter.utils` | 工具类模块 |
+| `fun.fan.xc.starter.wrapper` | 包装器模块 |
+| `fun.fan.xc.plugin.auth` | 认证授权模块 |
+| `fun.fan.xc.plugin.weixin` | 微信开发工具包模块 |
+| `fun.fan.xc.plugin.gateway` | 网关路由模块 |
+| `fun.fan.xc.plugin.redis` | Redis 扩展模块 |
+| `fun.fan.xc.plugin.mybatis_plus` | MyBatis Plus 扩展模块 |
+| `fun.fan.xc.plugin.upload` | 文件上传模块 |
+| `fun.fan.xc.plugin.sms` | 短信服务模块 |
+| `fun.fan.xc.plugin.coroutines` | 协程支持模块 |
+| `fun.fan.xc.plugin.baidu` | 百度相关功能模块 |
+| `fun.fan.xc.plugin.ca` | 证书管理模块 |
+| `fun.fan.xc.plugin.drone` | 无人机相关模块 |
+| `fun.fan.xc.plugin.scanner` | 扫描器模块 |
+| `fun.fan.xc.plugin.meituan` | 美团相关功能模块 |
 
 ## 运行与开发
 
@@ -89,36 +125,28 @@ fun.fan.xc.starter
 ### 依赖管理
 - 使用 Maven 进行依赖管理
 - 核心依赖包括 Spring Boot Web、FastJSON2、Hutool、Guava 等
-- 微信支付依赖 `wechatpay-java`
 
 ### 配置方式
-- 通过 `application.yml` 或 `application.properties` 配置微信相关参数
-- 配置前缀为 `xc.weixin`
-- 可分别配置公众号（official）、小程序（mini-program）、服务端（server）、客户端（client）
-
-### 启用方式
-- 在 Spring Boot 应用的启动类上添加 `@EnableWeiXinApi` 注解
+- 通过 `application.yml` 或 `application.properties` 配置相关参数
 
 ## 测试策略
 
 从代码分析来看，该项目目前没有包含专门的测试类或测试配置。建议补充以下测试：
 
 ### 单元测试
-- 对各个实体类进行序列化/反序列化测试
-- 对工具类（如签名工具）进行测试
+- 对各个模块的核心功能进行单元测试
+- 对工具类进行测试
 
 ### 集成测试
-- 对 API 调用进行模拟测试
-- 对 Token 管理机制进行并发测试
-
-### 支付测试
-- 对支付流程进行沙箱测试
+- 对插件模块进行集成测试
+- 对核心功能进行端到端测试
 
 ## 编码规范
 
 ### 语言规范
-- 主要使用 Kotlin 编写业务逻辑
-- 部分注解类使用 Java 编写
+- 项目采用 Kotlin 和 Java 混合编写，充分利用两种语言的优势
+- 核心业务逻辑主要使用 Kotlin 编写，以利用其简洁性和空安全特性
+- 部分组件和接口定义使用 Java 编写，以保持与 Spring 生态的兼容性
 
 ### 代码风格
 - 使用 Lombok 简化实体类代码
@@ -127,16 +155,16 @@ fun.fan.xc.starter
 
 ### 异常处理
 - 使用自定义异常类 `XcServiceException` 处理业务异常
-- 对微信返回的错误码进行封装和处理
 
 ## AI 使用指引
 
 ### 代码理解
-- 可以利用 AI 快速理解微信各种 API 的调用方式和参数含义
-- 可以帮助分析 Token 管理机制的并发安全性
+- 在分析代码时，需要注意项目使用 Kotlin 和 Java 混合编写，应同时读取 .java 和 .kt 文件
+- 可以利用 AI 快速理解各模块的功能和实现方式
+- 可以帮助分析复杂的业务逻辑
 
 ### 代码生成
-- 可以根据微信官方文档自动生成新的 API 接口代码
+- 可以根据需求自动生成新的模块代码
 - 可以生成测试用例和测试数据
 
 ### 代码优化
@@ -145,4 +173,5 @@ fun.fan.xc.starter
 
 ## 变更记录 (Changelog)
 
-- **2025-09-09**：完成对 xc-starter 微信开发工具包的初步分析，梳理了项目结构、核心功能和架构设计。
+- **2025-09-09**: 完成对 xc-starter 项目的初步分析，梳理了项目结构、核心功能和架构设计。
+- **2025-09-10**: 更新项目说明文件，修正架构图和模块索引信息。
