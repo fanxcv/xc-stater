@@ -91,6 +91,7 @@ class CoreInterceptor(applicationContext: ApplicationContext) : HandlerIntercept
 
     private fun dealRequestBody(input: EventInner, request: HttpServletRequest, contentType: String) {
         if (contentType.contains(MediaType.APPLICATION_JSON_VALUE)) { // 处理Json
+
             val map: Map<String, Any?> = JSON.parseObject(
                 request.inputStream,
                 Charset.forName(request.characterEncoding),

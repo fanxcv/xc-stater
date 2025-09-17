@@ -20,6 +20,16 @@ import javax.net.ssl.SSLException
  * 负责创建和管理Netty客户端，复用EventLoopGroup
  *
  * @author fan
+ *
+ * ## 功能特性
+ * - 单例模式管理Netty客户端组件
+ * - 复用EventLoopGroup，减少资源消耗
+ * - 支持HTTP/HTTPS协议
+ * - SSL上下文缓存，提高性能
+ * - 自动资源释放，确保JVM关闭时正确清理
+ *
+ * ## 使用说明
+ * 通过getInstance()方法获取单例实例，确保全局唯一性。
  */
 class NettyClientFactory {
 

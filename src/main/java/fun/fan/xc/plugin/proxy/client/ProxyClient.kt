@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory
 import java.net.URI
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
@@ -19,10 +20,38 @@ import java.util.concurrent.TimeoutException
  * 封装HTTP请求的代理转发，支持参数透传
  *
  * @author fan
+ *
+ * ## 功能特性
+ * - 基于Netty的异步HTTP客户端
+ * - 连接池管理，提高连接复用率
+ * - 超时控制，防止请求长时间阻塞
+ * - 支持HTTP/HTTPS协议
+ * - 自动处理请求/响应头
+ *
+ * ## 使用示例
+ * ```kotlin
+ * val client = ProxyClient()
+ * val request = DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/api/test")
+ * val response = client.executeProxyRequest(request, "http://example.com").get()
+ * ```
  */
 open class ProxyClient(private val connectionPool: NettyConnectionPool = NettyConnectionPool()) {
 
     private val log: Logger = LoggerFactory.getLogger(ProxyClient::class.java)
+
+    // 全局复用的超时处理线程池
+    companion object {
+        private val timeoutExecutor: ScheduledExecutorService by lazy {
+            Executors.newScheduledThreadPool(
+                Runtime.getRuntime().availableProcessors(),
+                { r ->
+                    val thread = Thread(r, "ProxyClient-Timeout")
+                    thread.isDaemon = true
+                    thread
+                }
+            )
+        }
+    }
 
     /**
      * 执行HTTP代理请求
@@ -37,6 +66,7 @@ open class ProxyClient(private val connectionPool: NettyConnectionPool = NettyCo
         targetUrl: String,
         timeoutMs: Long = 5000
     ): CompletableFuture<ProxyResponse> {
+        val startTime = System.currentTimeMillis()
         return try {
             val uri = URI(targetUrl)
             log.debug("Executing proxy request to: {}", targetUrl)
@@ -51,11 +81,7 @@ open class ProxyClient(private val connectionPool: NettyConnectionPool = NettyCo
             val future = CompletableFuture<ProxyResponse>()
 
             // 添加超时处理
-            val timeoutTask = Executors.newSingleThreadScheduledExecutor { r ->
-                val thread = Thread(r, "ProxyClient-Timeout")
-                thread.isDaemon = true
-                thread
-            }.schedule({
+            val timeoutTask = timeoutExecutor.schedule({
                 if (!future.isDone) {
                     log.warn("Proxy request timeout after {}ms: {}", timeoutMs, targetUrl)
                     future.completeExceptionally(TimeoutException("Proxy request timeout after ${timeoutMs}ms"))
@@ -64,9 +90,7 @@ open class ProxyClient(private val connectionPool: NettyConnectionPool = NettyCo
 
             channel.writeAndFlush(proxyRequest).addListener { futureListener ->
                 if (futureListener.isSuccess) {
-                    if (log.isDebugEnabled) {
-                        log.debug("Proxy request sent successfully to: {}", targetUrl)
-                    }
+                    log.debug("Proxy request sent successfully to: {}", targetUrl)
 
                     // 设置响应处理器
                     // 检查是否已经存在同名处理器，如果存在则先移除
@@ -140,11 +164,20 @@ open class ProxyClient(private val connectionPool: NettyConnectionPool = NettyCo
             }
 
             // 设置处理完成后的回调
-            future.whenComplete { _, _ ->
+            future.whenComplete { response, throwable ->
                 // 取消超时任务
                 timeoutTask.cancel(false)
                 // 确保连接被正确释放回连接池
                 releaseConnection(channel)
+
+                // 记录请求处理时间
+                val endTime = System.currentTimeMillis()
+                val duration = endTime - startTime
+                if (throwable != null) {
+                    log.warn("Proxy request to {} failed after {}ms: {}", targetUrl, duration, throwable.message)
+                } else if (response != null) {
+                    log.info("Proxy request to {} completed with status {} in {}ms", targetUrl, response.statusCode, duration)
+                }
             }
 
             future
@@ -221,12 +254,10 @@ open class ProxyClient(private val connectionPool: NettyConnectionPool = NettyCo
             proxyRequest.headers().set("User-Agent", "Xc-Proxy/1.0")
         }
 
-        if (log.isDebugEnabled) {
-            log.debug(
-                "Built proxy request: {} {} with {} headers",
-                proxyRequest.method(), proxyRequest.uri(), proxyRequest.headers().size()
-            )
-        }
+        log.debug(
+            "Built proxy request: {} {} with {} headers",
+            proxyRequest.method(), proxyRequest.uri(), proxyRequest.headers().size()
+        )
 
         return proxyRequest
     }
@@ -235,9 +266,7 @@ open class ProxyClient(private val connectionPool: NettyConnectionPool = NettyCo
      * 处理HTTP响应
      */
     private fun handleHttpResponse(response: HttpResponse, future: CompletableFuture<ProxyResponse>) {
-        if (log.isDebugEnabled) {
-            log.debug("Received HTTP response: {}", response.status())
-        }
+        log.debug("Received HTTP response: {}", response.status())
 
         // 防止重复完成
         if (future.isDone) {
@@ -254,9 +283,7 @@ open class ProxyClient(private val connectionPool: NettyConnectionPool = NettyCo
         if (isRedirect(response.status().code())) {
             val location = response.headers().get("Location")
             if (location != null) {
-                if (log.isDebugEnabled) {
-                    log.debug("Redirecting to: {}", location)
-                }
+                log.debug("Redirecting to: {}", location)
                 // 这里应该实现重定向逻辑，但为了简化，直接返回3xx响应
                 future.complete(ProxyResponse(response.status().code(), headers, ByteArray(0)))
                 return
@@ -294,9 +321,7 @@ open class ProxyClient(private val connectionPool: NettyConnectionPool = NettyCo
      * 处理最后的HTTP内容
      */
     private fun handleLastHttpContent(content: LastHttpContent, future: CompletableFuture<ProxyResponse>) {
-        if (log.isDebugEnabled) {
-            log.debug("Received last HTTP content")
-        }
+        log.debug("Received last HTTP content")
 
         // 防止重复完成
         if (future.isDone) {

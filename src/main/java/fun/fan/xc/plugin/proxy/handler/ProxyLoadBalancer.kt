@@ -12,8 +12,24 @@ import kotlin.random.Random
  * 支持权重轮询算法和失败重试机制
  *
  * @author fan
+ *
+ * ## 功能特性
+ * - 支持权重轮询算法，根据权重分配请求
+ * - 支持失败重试机制，提高系统可用性
+ * - 支持平滑加权轮询算法，确保权重分配准确性
+ * - 可配置最大重试次数，防止无限重试
+ *
+ * ## 使用示例
+ * ```kotlin
+ * val loadBalancer = ProxyLoadBalancer()
+ * val urls = listOf(WeightedUrl("http://server1.com", 5), WeightedUrl("http://server2.com", 3))
+ * val response = loadBalancer.executeLoadBalancedRequest(request, urls).get()
+ * ```
  */
-open class ProxyLoadBalancer(private val proxyClient: ProxyClient = ProxyClient()) {
+open class ProxyLoadBalancer(
+    private val proxyClient: ProxyClient = ProxyClient(),
+    private val maxRetryCount: Int = 3 // 最大重试次数
+) {
 
     private val log: Logger = LoggerFactory.getLogger(ProxyLoadBalancer::class.java)
 
@@ -71,13 +87,24 @@ open class ProxyLoadBalancer(private val proxyClient: ProxyClient = ProxyClient(
         request: io.netty.handler.codec.http.FullHttpRequest,
         urlSelector: WeightedUrlSelector,
         timeoutMs: Long,
-        future: CompletableFuture<ProxyClient.ProxyResponse>
+        future: CompletableFuture<ProxyClient.ProxyResponse>,
+        retryCount: Int = 0 // 当前重试次数
     ) {
+        // 检查是否超过最大重试次数
+        if (retryCount >= maxRetryCount) {
+            val errorMsg = "All target URLs failed after $maxRetryCount retries"
+            log.error(errorMsg)
+            future.completeExceptionally(RuntimeException(errorMsg))
+            return
+        }
+
         val selectedUrl = urlSelector.selectNext()
 
         if (selectedUrl == null) {
             // 所有URL都已尝试过，但都失败了
-            future.completeExceptionally(Exception("All target URLs failed after retries"))
+            val errorMsg = "All target URLs failed after retries"
+            log.error(errorMsg)
+            future.completeExceptionally(RuntimeException(errorMsg))
             return
         }
 
@@ -103,17 +130,35 @@ open class ProxyLoadBalancer(private val proxyClient: ProxyClient = ProxyClient(
                             selectedUrl.url, response.statusCode
                         )
                         if (!future.isDone) {
-                            executeNextAttempt(request, urlSelector, timeoutMs, future)
+                            executeNextAttempt(request, urlSelector, timeoutMs, future, retryCount + 1)
                         }
                     }
                 } else {
                     // 请求失败，尝试下一个URL
-                    log.warn(
-                        "Request exception to: {} : {}, trying next target",
-                        selectedUrl.url, throwable?.message
-                    )
+                    val errorMsg = if (throwable != null) {
+                        "Request exception to: ${selectedUrl.url} : ${throwable.message}"
+                    } else {
+                        "Request failed to: ${selectedUrl.url} with null response"
+                    }
+
+                    // 根据异常类型记录不同级别的日志
+                    when (throwable) {
+                        is java.util.concurrent.TimeoutException -> {
+                            log.warn("Timeout {}", errorMsg)
+                        }
+                        is java.net.ConnectException -> {
+                            log.warn("Connection failed {}", errorMsg)
+                        }
+                        is java.net.UnknownHostException -> {
+                            log.warn("Unknown host {}", errorMsg)
+                        }
+                        else -> {
+                            log.warn("General error {}", errorMsg)
+                        }
+                    }
+
                     if (!future.isDone) {
-                        executeNextAttempt(request, urlSelector, timeoutMs, future)
+                        executeNextAttempt(request, urlSelector, timeoutMs, future, retryCount + 1)
                     }
                 }
             }
@@ -153,9 +198,11 @@ open class ProxyLoadBalancer(private val proxyClient: ProxyClient = ProxyClient(
         private val log: Logger = LoggerFactory.getLogger(ProxyLoadBalancer::class.java)
 
         private val attemptedUrls = mutableSetOf<String>()
+        private var currentPos = 0 // 当前位置，用于平滑加权轮询
+        private val effectiveWeights = weightedUrls.map { it.weight }.toMutableList() // 有效权重列表
 
         /**
-         * 选择下一个URL
+         * 选择下一个URL（使用平滑加权轮询算法）
          */
         fun selectNext(): WeightedUrl? {
             // 如果所有URL都已尝试过，返回null
@@ -164,22 +211,51 @@ open class ProxyLoadBalancer(private val proxyClient: ProxyClient = ProxyClient(
                 return null
             }
 
-            // 权重轮询算法
-            var randomWeight = Random.nextInt(totalWeight)
-            for (weightedUrl in availableUrls) {
-                randomWeight -= weightedUrl.weight
-                if (randomWeight < 0) {
-                    attemptedUrls.add(weightedUrl.url)
-                    log.debug(
-                        "Selected URL: {} with weight: {} (remaining: {}/{})",
-                        weightedUrl.url, weightedUrl.weight,
-                        availableUrls.size - 1, weightedUrls.size
-                    )
-                    return weightedUrl
+            // 平滑加权轮询算法
+            var totalEffectiveWeight = effectiveWeights.sum()
+            if (totalEffectiveWeight <= 0) {
+                // 如果所有权重都<=0，则退化为随机选择
+                val selected = availableUrls[Random.nextInt(availableUrls.size)]
+                attemptedUrls.add(selected.url)
+                return selected
+            }
+
+            // 计算下一个服务器
+            var selectedUrl: WeightedUrl? = null
+            var selectedIndex = -1
+            var maxWeight = -1
+
+            for (i in weightedUrls.indices) {
+                val url = weightedUrls[i]
+                // 跳过已尝试过的URL
+                if (url.url in attemptedUrls) {
+                    continue
+                }
+
+                // 增加当前权重
+                effectiveWeights[i] += url.weight
+                // 选择权重最大的
+                if (effectiveWeights[i] > maxWeight) {
+                    maxWeight = effectiveWeights[i]
+                    selectedUrl = url
+                    selectedIndex = i
                 }
             }
 
-            // 如果权重计算有问题，返回第一个可用的URL
+            if (selectedUrl != null && selectedIndex >= 0) {
+                // 减去总权重
+                effectiveWeights[selectedIndex] -= totalEffectiveWeight
+                attemptedUrls.add(selectedUrl.url)
+                log.debug(
+                    "Selected URL: {} with weight: {} (remaining: {}/{})",
+                    selectedUrl.url, selectedUrl.weight,
+                    availableUrls.size - 1, weightedUrls.size
+                )
+                log.info("Load balancer selected target: {} with weight: {}", selectedUrl.url, selectedUrl.weight)
+                return selectedUrl
+            }
+
+            // 如果算法有问题，返回第一个可用的URL
             val selected = availableUrls.first()
             attemptedUrls.add(selected.url)
             log.debug("Selected URL (fallback): {} with weight: {}", selected.url, selected.weight)

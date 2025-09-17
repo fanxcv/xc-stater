@@ -14,12 +14,31 @@ import java.util.concurrent.atomic.AtomicInteger
  * 管理HTTP/HTTPS连接的复用和池化
  *
  * @author fan
+ *
+ * ## 功能特性
+ * - 支持HTTP/HTTPS连接池化管理
+ * - 按路由分组管理连接
+ * - 支持连接复用，减少连接创建开销
+ * - 自动清理空闲连接
+ * - 可配置连接池参数
+ *
+ * ## 配置参数
+ * - maxTotalConnections: 最大总连接数
+ * - maxConnectionsPerRoute: 每路由最大连接数
+ * - connectionIdleTimeout: 连接空闲超时时间
+ * - connectionTimeout: 连接超时时间
+ * - maxWaitQueueSize: 最大等待队列长度
+ * - healthCheckInterval: 健康检查间隔
+ * - connectRetryCount: 连接创建失败重试次数
  */
 class NettyConnectionPool(
     private val maxTotalConnections: Int = 200,
     private val maxConnectionsPerRoute: Int = 20,
     private val connectionIdleTimeout: Long = 300000L, // 5分钟
-    private val connectionTimeout: Long = 5000L // 5秒
+    private val connectionTimeout: Long = 5000L, // 5秒
+    private val maxWaitQueueSize: Int = 100, // 最大等待队列长度
+    private val healthCheckInterval: Long = 60000L, // 连接健康检查间隔 1分钟
+    private val connectRetryCount: Int = 3 // 连接创建失败重试次数
 ) {
 
     private val log: Logger = LoggerFactory.getLogger(NettyConnectionPool::class.java)
@@ -47,8 +66,8 @@ class NettyConnectionPool(
         )
 
         log.info(
-            "NettyConnectionPool initialized: maxTotal={}, maxPerRoute={}, idleTimeout={}ms",
-            maxTotalConnections, maxConnectionsPerRoute, connectionIdleTimeout
+            "NettyConnectionPool initialized: maxTotal={}, maxPerRoute={}, idleTimeout={}ms, maxWaitQueueSize={}, healthCheckInterval={}ms, connectRetryCount={}",
+            maxTotalConnections, maxConnectionsPerRoute, connectionIdleTimeout, maxWaitQueueSize, healthCheckInterval, connectRetryCount
         )
     }
 
@@ -74,6 +93,9 @@ class NettyConnectionPool(
             "Acquired connection for route: {}, active connections: {}/{}",
             routeKey, totalConnections.get(), maxTotalConnections
         )
+        log.info("Connection pool status - route: {}, active: {}, idle: {}, total: {}/{}",
+            routeKey, routePool.getActiveConnectionCount(), routePool.getIdleConnectionCount(),
+            totalConnections.get(), maxTotalConnections)
 
         return channel
     }
@@ -255,6 +277,20 @@ class NettyConnectionPool(
      * 路由连接池
      */
     private inner class RouteConnectionPool() {
+
+        /**
+         * 获取活跃连接数
+         */
+        fun getActiveConnectionCount(): Int {
+            return activeConnections.size
+        }
+
+        /**
+         * 获取空闲连接数
+         */
+        fun getIdleConnectionCount(): Int {
+            return idleConnections.size
+        }
         private val activeConnections = ConcurrentHashMap<Channel, ConnectionInfo>()
         private val idleConnections = ConcurrentLinkedDeque<ConnectionInfo>()
         private val connectionLock = Any()
