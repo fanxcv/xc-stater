@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true">
+    <springProperty scope="context" name="FilePath" source="logging.file.path" default=""/>
+    <springProperty scope="context" name="AppName" source="spring.application.name" default="log"/>
+    <springProperty scope="context" name="filePattern" source="logging.pattern.console" default="%d{MM-dd HH:mm:ss.SSS} %-5p [%-16.16t{16}] %-40.40logger{40} : %m%n"/>
+
+    <property name="APP" value="${AppName}"/>
+    <property name="LOG_HOME" value="${FilePath}"/>
+
+    <property name="MAX_HISTORY" value="30"/>
+    <property name="FILE_PATTERN" value="${filePattern}"/>
+    <property name="CONSOLE_PATTERN"
+              value="%d{MM-dd HH:mm:ss} %clr(%5level) %cyan(%-40.40logger{39})-%magenta(%4line) [%blue(%-15.15thread{15})]%clr( ){faint} "/>
+
+    <conversionRule conversionWord="clr" converterClass="org.springframework.boot.logging.logback.ColorConverter"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${CONSOLE_PATTERN}%m %n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>ERROR</level>
+            <onMatch>DENY</onMatch>
+            <onMismatch>ACCEPT</onMismatch>
+        </filter>
+    </appender>
+    <appender name="CONSOLE-ERROR" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${CONSOLE_PATTERN}%boldRed(%m) %n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>ERROR</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+    </appender>
+
+    <if condition='!property("FilePath").equals("")'>
+        <then>
+            <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender" additivity="false">
+                <file>${LOG_HOME}/${APP}_detail.log</file>
+                <encoder>
+                    <pattern>${FILE_PATTERN}</pattern>
+                    <charset>UTF-8</charset>
+                </encoder>
+                <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                    <fileNamePattern>${LOG_HOME}/${APP}_detail.log.%d{yyyyMMdd}</fileNamePattern>
+                    <maxHistory>${MAX_HISTORY}</maxHistory>
+                </rollingPolicy>
+            </appender>
+            <appender name="FILE-ERROR" class="ch.qos.logback.core.rolling.RollingFileAppender" additivity="false">
+                <file>${LOG_HOME}/${APP}_error.log</file>
+                <encoder>
+                    <pattern>${FILE_PATTERN}</pattern>
+                    <charset>UTF-8</charset>
+                </encoder>
+                <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                    <fileNamePattern>${LOG_HOME}/${APP}_error.log.%d{yyyyMMdd}</fileNamePattern>
+                    <maxHistory>${MAX_HISTORY}</maxHistory>
+                </rollingPolicy>
+                <filter class="ch.qos.logback.classic.filter.LevelFilter">
+                    <level>ERROR</level>
+                    <onMatch>ACCEPT</onMatch>
+                    <onMismatch>DENY</onMismatch>
+                </filter>
+            </appender>
+        </then>
+    </if>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="CONSOLE-ERROR"/>
+        <if condition='!property("FilePath").equals("")'>
+            <then>
+                <appender-ref ref="FILE"/>
+                <appender-ref ref="FILE-ERROR"/>
+            </then>
+        </if>
+    </root>
+</configuration>
