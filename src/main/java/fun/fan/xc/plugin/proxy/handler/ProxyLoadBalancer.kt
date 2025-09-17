@@ -33,6 +33,9 @@ open class ProxyLoadBalancer(
 
     private val log: Logger = LoggerFactory.getLogger(ProxyLoadBalancer::class.java)
 
+    // 权重状态缓存，按目标URL列表的哈希值存储
+    private val weightStates = mutableMapOf<String, WeightState>()
+
     /**
      * 执行负载均衡的代理请求
      *
@@ -55,8 +58,11 @@ open class ProxyLoadBalancer(
         // 计算总权重
         val totalWeight = targetUrls.sumOf { it.weight }
 
-        // 创建选择器（包含重试逻辑）
-        val urlSelector = WeightedUrlSelector(targetUrls, totalWeight)
+        // 获取或创建权重状态（按目标URL列表的哈希值）
+        val targetsKey = targetUrls.joinToString("|") { "${it.url}:${it.weight}" }
+        val weightState = weightStates.getOrPut(targetsKey) {
+            WeightState(targetUrls, totalWeight)
+        }
 
         log.debug(
             "Executing load balanced request with {} targets (total weight: {})",
@@ -64,7 +70,7 @@ open class ProxyLoadBalancer(
         )
 
         // 执行请求（支持失败重试）
-        return executeWithRetry(request, urlSelector, timeoutMs)
+        return executeWithRetry(request, weightState, timeoutMs)
     }
 
     /**
@@ -72,11 +78,11 @@ open class ProxyLoadBalancer(
      */
     private fun executeWithRetry(
         request: io.netty.handler.codec.http.FullHttpRequest,
-        urlSelector: WeightedUrlSelector,
+        weightState: WeightState,
         timeoutMs: Long
     ): CompletableFuture<ProxyClient.ProxyResponse> {
         val future = CompletableFuture<ProxyClient.ProxyResponse>()
-        executeNextAttempt(request, urlSelector, timeoutMs, future)
+        executeNextAttempt(request, weightState, timeoutMs, future)
         return future
     }
 
@@ -85,7 +91,7 @@ open class ProxyLoadBalancer(
      */
     private fun executeNextAttempt(
         request: io.netty.handler.codec.http.FullHttpRequest,
-        urlSelector: WeightedUrlSelector,
+        weightState: WeightState,
         timeoutMs: Long,
         future: CompletableFuture<ProxyClient.ProxyResponse>,
         retryCount: Int = 0 // 当前重试次数
@@ -98,7 +104,7 @@ open class ProxyLoadBalancer(
             return
         }
 
-        val selectedUrl = urlSelector.selectNext()
+        val selectedUrl = weightState.selectNext()
 
         if (selectedUrl == null) {
             // 所有URL都已尝试过，但都失败了
@@ -120,17 +126,20 @@ open class ProxyLoadBalancer(
                             "Request succeeded to: {} with status: {}",
                             selectedUrl.url, response.statusCode
                         )
+                        // 成功响应后重置失败标记
+                        weightState.resetFailedUrls()
                         if (!future.isDone) {
                             future.complete(response)
                         }
                     } else {
-                        // 响应状态码表示失败，尝试下一个URL
+                        // 响应状态码表示失败，标记URL并尝试下一个
                         log.warn(
                             "Request failed to: {} with status: {}, trying next target",
                             selectedUrl.url, response.statusCode
                         )
+                        weightState.markUrlAsFailed(selectedUrl.url)
                         if (!future.isDone) {
-                            executeNextAttempt(request, urlSelector, timeoutMs, future, retryCount + 1)
+                            executeNextAttempt(request, weightState, timeoutMs, future, retryCount + 1)
                         }
                     }
                 } else {
@@ -157,8 +166,9 @@ open class ProxyLoadBalancer(
                         }
                     }
 
+                    weightState.markUrlAsFailed(selectedUrl.url)
                     if (!future.isDone) {
-                        executeNextAttempt(request, urlSelector, timeoutMs, future, retryCount + 1)
+                        executeNextAttempt(request, weightState, timeoutMs, future, retryCount + 1)
                     }
                 }
             }
@@ -189,77 +199,90 @@ open class ProxyLoadBalancer(
     )
 
     /**
-     * 权重URL选择器
+     * 权重状态管理类（用于持久化权重状态）
      */
-    private class WeightedUrlSelector(
+    private class WeightState(
         private val weightedUrls: List<WeightedUrl>,
         private val totalWeight: Int
     ) {
         private val log: Logger = LoggerFactory.getLogger(ProxyLoadBalancer::class.java)
 
-        private val attemptedUrls = mutableSetOf<String>()
-        private var currentPos = 0 // 当前位置，用于平滑加权轮询
-        private val effectiveWeights = weightedUrls.map { it.weight }.toMutableList() // 有效权重列表
+        private val failedUrls = mutableSetOf<String>()
+        private val currentWeights = weightedUrls.map { it.weight }.toMutableList() // 当前权重列表
 
         /**
-         * 选择下一个URL（使用平滑加权轮询算法）
+         * 选择下一个URL（使用标准的平滑加权轮询算法）
          */
         fun selectNext(): WeightedUrl? {
-            // 如果所有URL都已尝试过，返回null
-            val availableUrls = weightedUrls.filter { it.url !in attemptedUrls }
+            // 如果所有URL都已失败，返回null
+            val availableUrls = weightedUrls.filter { it.url !in failedUrls }
             if (availableUrls.isEmpty()) {
                 return null
             }
 
-            // 平滑加权轮询算法
-            var totalEffectiveWeight = effectiveWeights.sum()
-            if (totalEffectiveWeight <= 0) {
-                // 如果所有权重都<=0，则退化为随机选择
-                val selected = availableUrls[Random.nextInt(availableUrls.size)]
-                attemptedUrls.add(selected.url)
+            // 如果只有一个可用的URL，直接返回
+            if (availableUrls.size == 1) {
+                val selected = availableUrls.first()
+                log.debug("Selected URL (only one available): {}", selected.url)
                 return selected
             }
 
-            // 计算下一个服务器
+            // 标准平滑加权轮询算法
             var selectedUrl: WeightedUrl? = null
             var selectedIndex = -1
-            var maxWeight = -1
+            var maxCurrentWeight = -1
 
+            // 遍历所有可用的URL
             for (i in weightedUrls.indices) {
                 val url = weightedUrls[i]
-                // 跳过已尝试过的URL
-                if (url.url in attemptedUrls) {
+                // 跳过已失败的URL
+                if (url.url in failedUrls) {
                     continue
                 }
 
-                // 增加当前权重
-                effectiveWeights[i] += url.weight
-                // 选择权重最大的
-                if (effectiveWeights[i] > maxWeight) {
-                    maxWeight = effectiveWeights[i]
+                // 当前权重 = 当前权重 + 实际权重
+                currentWeights[i] += url.weight
+
+                // 选择当前权重最大的URL
+                if (currentWeights[i] > maxCurrentWeight) {
+                    maxCurrentWeight = currentWeights[i]
                     selectedUrl = url
                     selectedIndex = i
                 }
             }
 
             if (selectedUrl != null && selectedIndex >= 0) {
-                // 减去总权重
-                effectiveWeights[selectedIndex] -= totalEffectiveWeight
-                attemptedUrls.add(selectedUrl.url)
+                // 被选中的URL减去总权重
+                currentWeights[selectedIndex] -= totalWeight
+
                 log.debug(
-                    "Selected URL: {} with weight: {} (remaining: {}/{})",
-                    selectedUrl.url, selectedUrl.weight,
-                    availableUrls.size - 1, weightedUrls.size
+                    "Selected URL: {} with weight: {} (current weights: {})",
+                    selectedUrl.url, selectedUrl.weight, currentWeights.joinToString()
                 )
                 log.info("Load balancer selected target: {} with weight: {}", selectedUrl.url, selectedUrl.weight)
                 return selectedUrl
             }
 
-            // 如果算法有问题，返回第一个可用的URL
-            val selected = availableUrls.first()
-            attemptedUrls.add(selected.url)
-            log.debug("Selected URL (fallback): {} with weight: {}", selected.url, selected.weight)
+            // 如果算法有问题（理论上不会发生），退化为随机选择
+            val selected = availableUrls[Random.nextInt(availableUrls.size)]
+            log.debug("Selected URL (fallback random): {} with weight: {}", selected.url, selected.weight)
             return selected
+        }
+
+        /**
+         * 标记URL为失败（在重试时调用）
+         */
+        fun markUrlAsFailed(url: String) {
+            failedUrls.add(url)
+            log.debug("Marked URL as failed: {}", url)
+        }
+
+        /**
+         * 重置失败标记（在成功时调用）
+         */
+        fun resetFailedUrls() {
+            failedUrls.clear()
+            log.debug("Reset all failed URLs")
         }
     }
 }

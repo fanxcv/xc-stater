@@ -84,13 +84,16 @@ class CoreInterceptor(applicationContext: ApplicationContext) : HandlerIntercept
             try {
                 dealRequestBody(input, request, contentType)
             } catch (e: Exception) {
-                log.error("params parse error: ${e.message}")
+                log.error("Failed to parse request parameters: ${e.message}", e)
             }
         }
     }
 
     private fun dealRequestBody(input: EventInner, request: HttpServletRequest, contentType: String) {
         if (contentType.contains(MediaType.APPLICATION_JSON_VALUE)) { // 处理Json
+            if (request.contentLength <= 0) {
+                return
+            }
 
             val map: Map<String, Any?> = JSON.parseObject(
                 request.inputStream,
