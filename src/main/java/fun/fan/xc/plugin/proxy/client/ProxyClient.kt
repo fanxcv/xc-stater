@@ -2,14 +2,17 @@ package `fun`.fan.xc.plugin.proxy.client
 
 import io.netty.buffer.Unpooled
 import io.netty.channel.Channel
+import io.netty.channel.ChannelHandlerContext
+import io.netty.channel.SimpleChannelInboundHandler
 import io.netty.handler.codec.http.*
+import io.netty.handler.timeout.IdleStateEvent
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.net.URI
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeoutException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 /**
  * 代理客户端实现
@@ -48,16 +51,22 @@ open class ProxyClient(private val connectionPool: NettyConnectionPool = NettyCo
             val future = CompletableFuture<ProxyResponse>()
 
             // 添加超时处理
-            val timeoutTask = Executors.newSingleThreadScheduledExecutor().schedule({
+            val timeoutTask = Executors.newSingleThreadScheduledExecutor { r ->
+                val thread = Thread(r, "ProxyClient-Timeout")
+                thread.isDaemon = true
+                thread
+            }.schedule({
                 if (!future.isDone) {
                     log.warn("Proxy request timeout after {}ms: {}", timeoutMs, targetUrl)
                     future.completeExceptionally(TimeoutException("Proxy request timeout after ${timeoutMs}ms"))
                 }
             }, timeoutMs, TimeUnit.MILLISECONDS)
 
-            channel.writeAndFlush(proxyRequest).addListener {
-                if (it.isSuccess) {
-                    log.debug("Proxy request sent successfully to: {}", targetUrl)
+            channel.writeAndFlush(proxyRequest).addListener { futureListener ->
+                if (futureListener.isSuccess) {
+                    if (log.isDebugEnabled) {
+                        log.debug("Proxy request sent successfully to: {}", targetUrl)
+                    }
 
                     // 设置响应处理器
                     // 检查是否已经存在同名处理器，如果存在则先移除
@@ -121,9 +130,11 @@ open class ProxyClient(private val connectionPool: NettyConnectionPool = NettyCo
                         }
                     })
                 } else {
-                    log.error("Failed to send proxy request: {}", it.cause()?.message)
+                    log.error("Failed to send proxy request: {}", futureListener.cause()?.message)
                     if (!future.isDone) {
-                        future.completeExceptionally(it.cause() ?: RuntimeException("Failed to send proxy request"))
+                        future.completeExceptionally(
+                            futureListener.cause() ?: RuntimeException("Failed to send proxy request")
+                        )
                     }
                 }
             }
@@ -181,7 +192,12 @@ open class ProxyClient(private val connectionPool: NettyConnectionPool = NettyCo
             when (key.lowercase()) {
                 "host" -> {
                     // 更新Host header为目标服务器
-                    proxyRequest.headers().set("Host", "${targetUri.host}:${targetUri.port}")
+                    val port = if (targetUri.port == -1) {
+                        if (targetUri.scheme == "https") 443 else 80
+                    } else {
+                        targetUri.port
+                    }
+                    proxyRequest.headers().set("Host", "${targetUri.host}:$port")
                 }
 
                 "content-length" -> {
@@ -205,10 +221,12 @@ open class ProxyClient(private val connectionPool: NettyConnectionPool = NettyCo
             proxyRequest.headers().set("User-Agent", "Xc-Proxy/1.0")
         }
 
-        log.debug(
-            "Built proxy request: {} {} with {} headers",
-            proxyRequest.method(), proxyRequest.uri(), proxyRequest.headers().size()
-        )
+        if (log.isDebugEnabled) {
+            log.debug(
+                "Built proxy request: {} {} with {} headers",
+                proxyRequest.method(), proxyRequest.uri(), proxyRequest.headers().size()
+            )
+        }
 
         return proxyRequest
     }
@@ -217,7 +235,9 @@ open class ProxyClient(private val connectionPool: NettyConnectionPool = NettyCo
      * 处理HTTP响应
      */
     private fun handleHttpResponse(response: HttpResponse, future: CompletableFuture<ProxyResponse>) {
-        log.debug("Received HTTP response: {}", response.status())
+        if (log.isDebugEnabled) {
+            log.debug("Received HTTP response: {}", response.status())
+        }
 
         // 防止重复完成
         if (future.isDone) {
@@ -234,7 +254,9 @@ open class ProxyClient(private val connectionPool: NettyConnectionPool = NettyCo
         if (isRedirect(response.status().code())) {
             val location = response.headers().get("Location")
             if (location != null) {
-                log.debug("Redirecting to: {}", location)
+                if (log.isDebugEnabled) {
+                    log.debug("Redirecting to: {}", location)
+                }
                 // 这里应该实现重定向逻辑，但为了简化，直接返回3xx响应
                 future.complete(ProxyResponse(response.status().code(), headers, ByteArray(0)))
                 return
@@ -272,7 +294,9 @@ open class ProxyClient(private val connectionPool: NettyConnectionPool = NettyCo
      * 处理最后的HTTP内容
      */
     private fun handleLastHttpContent(content: LastHttpContent, future: CompletableFuture<ProxyResponse>) {
-        log.debug("Received last HTTP content")
+        if (log.isDebugEnabled) {
+            log.debug("Received last HTTP content")
+        }
 
         // 防止重复完成
         if (future.isDone) {
@@ -361,37 +385,6 @@ open class ProxyClient(private val connectionPool: NettyConnectionPool = NettyCo
             result = 31 * result + headers.hashCode()
             result = 31 * result + body.contentHashCode()
             return result
-        }
-    }
-
-    /**
-     * 简化的ChannelInboundHandler实现
-     */
-    private abstract class SimpleChannelInboundHandler<T : HttpObject> :
-        io.netty.channel.ChannelInboundHandlerAdapter() {
-
-        override fun channelRead(ctx: io.netty.channel.ChannelHandlerContext, msg: Any) {
-            try {
-                @Suppress("UNCHECKED_CAST")
-                channelRead0(ctx, msg as T)
-            } catch (e: Exception) {
-                exceptionCaught(ctx, e)
-            }
-        }
-
-        abstract fun channelRead0(ctx: io.netty.channel.ChannelHandlerContext, msg: T)
-
-        override fun exceptionCaught(ctx: io.netty.channel.ChannelHandlerContext, cause: Throwable) {
-            LoggerFactory.getLogger(ProxyClient::class.java).error("Exception in channel handler: {}", cause.message)
-            ctx.close()
-        }
-
-        override fun userEventTriggered(ctx: io.netty.channel.ChannelHandlerContext, evt: Any) {
-            if (evt is io.netty.handler.timeout.IdleStateEvent) {
-                LoggerFactory.getLogger(ProxyClient::class.java).warn("Channel idle timeout: {}", evt.state())
-                ctx.close()
-            }
-            super.userEventTriggered(ctx, evt)
         }
     }
 }

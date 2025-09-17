@@ -4,8 +4,8 @@ import `fun`.fan.xc.plugin.proxy.client.ProxyClient
 import `fun`.fan.xc.plugin.proxy.exception.ProxyException
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.springframework.stereotype.Component
 import java.util.concurrent.CompletableFuture
+import kotlin.random.Random
 
 /**
  * 代理负载均衡器
@@ -60,9 +60,7 @@ open class ProxyLoadBalancer(private val proxyClient: ProxyClient = ProxyClient(
         timeoutMs: Long
     ): CompletableFuture<ProxyClient.ProxyResponse> {
         val future = CompletableFuture<ProxyClient.ProxyResponse>()
-
         executeNextAttempt(request, urlSelector, timeoutMs, future)
-
         return future
     }
 
@@ -152,9 +150,9 @@ open class ProxyLoadBalancer(private val proxyClient: ProxyClient = ProxyClient(
         private val weightedUrls: List<WeightedUrl>,
         private val totalWeight: Int
     ) {
+        private val log: Logger = LoggerFactory.getLogger(ProxyLoadBalancer::class.java)
 
         private val attemptedUrls = mutableSetOf<String>()
-        private var currentIndex = 0
 
         /**
          * 选择下一个URL
@@ -166,16 +164,13 @@ open class ProxyLoadBalancer(private val proxyClient: ProxyClient = ProxyClient(
                 return null
             }
 
-            // 计算当前轮的选择范围
-            val currentTotalWeight = availableUrls.sumOf { it.weight }
-            var randomWeight = (Math.random() * currentTotalWeight).toInt()
-
             // 权重轮询算法
+            var randomWeight = Random.nextInt(totalWeight)
             for (weightedUrl in availableUrls) {
                 randomWeight -= weightedUrl.weight
-                if (randomWeight <= 0) {
+                if (randomWeight < 0) {
                     attemptedUrls.add(weightedUrl.url)
-                    LoggerFactory.getLogger(ProxyLoadBalancer::class.java).debug(
+                    log.debug(
                         "Selected URL: {} with weight: {} (remaining: {}/{})",
                         weightedUrl.url, weightedUrl.weight,
                         availableUrls.size - 1, weightedUrls.size
@@ -187,23 +182,8 @@ open class ProxyLoadBalancer(private val proxyClient: ProxyClient = ProxyClient(
             // 如果权重计算有问题，返回第一个可用的URL
             val selected = availableUrls.first()
             attemptedUrls.add(selected.url)
-            LoggerFactory.getLogger(ProxyLoadBalancer::class.java)
-                .debug("Selected URL (fallback): {} with weight: {}", selected.url, selected.weight)
+            log.debug("Selected URL (fallback): {} with weight: {}", selected.url, selected.weight)
             return selected
-        }
-
-        /**
-         * 获取剩余可用的URL数量
-         */
-        fun getRemainingCount(): Int {
-            return weightedUrls.count { it.url !in attemptedUrls }
-        }
-
-        /**
-         * 获取已尝试的URL数量
-         */
-        fun getAttemptedCount(): Int {
-            return attemptedUrls.size
         }
     }
 }

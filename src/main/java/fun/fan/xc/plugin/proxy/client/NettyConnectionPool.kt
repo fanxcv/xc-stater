@@ -31,7 +31,11 @@ class NettyConnectionPool(
     private val totalConnections = AtomicInteger(0)
 
     // 连接池清理定时器
-    private val cleanupTimer: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor()
+    private val cleanupTimer: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor { r ->
+        val thread = Thread(r, "NettyConnectionPool-Cleanup")
+        thread.isDaemon = true
+        thread
+    }
 
     init {
         // 启动空闲连接清理任务
@@ -42,8 +46,10 @@ class NettyConnectionPool(
             TimeUnit.MILLISECONDS
         )
 
-        log.info("NettyConnectionPool initialized: maxTotal={}, maxPerRoute={}, idleTimeout={}ms",
-                 maxTotalConnections, maxConnectionsPerRoute, connectionIdleTimeout)
+        log.info(
+            "NettyConnectionPool initialized: maxTotal={}, maxPerRoute={}, idleTimeout={}ms",
+            maxTotalConnections, maxConnectionsPerRoute, connectionIdleTimeout
+        )
     }
 
     /**
@@ -58,14 +64,16 @@ class NettyConnectionPool(
 
         // 获取或创建路由连接池
         val routePool = routePools.getOrPut(routeKey) {
-            RouteConnectionPool(routeKey, maxConnectionsPerRoute)
+            RouteConnectionPool()
         }
 
         // 尝试从路由池获取可用连接
         val channel = routePool.acquireConnection() ?: createNewConnection(routePool, uri)
 
-        log.debug("Acquired connection for route: {}, active connections: {}/{}",
-                  routeKey, totalConnections.get(), maxTotalConnections)
+        log.debug(
+            "Acquired connection for route: {}, active connections: {}/{}",
+            routeKey, totalConnections.get(), maxTotalConnections
+        )
 
         return channel
     }
@@ -169,8 +177,10 @@ class NettyConnectionPool(
             val connectionInfo = ConnectionInfo(channel, System.currentTimeMillis())
             routePool.addConnection(connectionInfo)
 
-            log.info("Created new connection for route: {}, total connections: {}/{}",
-                     routeKey, totalConnections.get(), maxTotalConnections)
+            log.info(
+                "Created new connection for route: {}, total connections: {}/{}",
+                routeKey, totalConnections.get(), maxTotalConnections
+            )
 
             return channel
         } catch (e: Exception) {
@@ -195,11 +205,12 @@ class NettyConnectionPool(
      * 获取路由键
      */
     private fun getRouteKey(uri: URI): String {
-        return "${uri.scheme}://${uri.host}:${if (uri.port == -1) {
+        val port = if (uri.port == -1) {
             if (uri.scheme == "https") 443 else 80
         } else {
             uri.port
-        }}"
+        }
+        return "${uri.scheme}://${uri.host}:$port"
     }
 
     /**
@@ -215,8 +226,10 @@ class NettyConnectionPool(
         }
 
         if (totalCleaned > 0) {
-            log.info("Cleaned up {} idle connections, total active connections: {}/{}",
-                     totalCleaned, totalConnections.get(), maxTotalConnections)
+            log.info(
+                "Cleaned up {} idle connections, total active connections: {}/{}",
+                totalCleaned, totalConnections.get(), maxTotalConnections
+            )
         }
     }
 
@@ -241,11 +254,7 @@ class NettyConnectionPool(
     /**
      * 路由连接池
      */
-    private inner class RouteConnectionPool(
-        private val routeKey: String,
-        private val maxConnections: Int
-    ) {
-
+    private inner class RouteConnectionPool() {
         private val activeConnections = ConcurrentHashMap<Channel, ConnectionInfo>()
         private val idleConnections = ConcurrentLinkedDeque<ConnectionInfo>()
         private val connectionLock = Any()
@@ -256,10 +265,7 @@ class NettyConnectionPool(
         fun acquireConnection(): Channel? {
             synchronized(connectionLock) {
                 while (true) {
-                    val connectionInfo = idleConnections.poll()
-                    if (connectionInfo == null) {
-                        break
-                    }
+                    val connectionInfo = idleConnections.poll() ?: break
 
                     val channel = connectionInfo.channel
                     if (channel.isActive) {

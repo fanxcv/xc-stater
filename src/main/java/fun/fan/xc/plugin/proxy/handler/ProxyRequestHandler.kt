@@ -58,9 +58,9 @@ open class ProxyRequestHandler(private val proxyProperties: ProxyProperties) {
         // 查找匹配的代理配置
         val matchedConfig = findMatchingProxyConfig(requestPath)
         if (matchedConfig == null) {
-            val future2 = CompletableFuture<ProxyClient.ProxyResponse>()
-            future2.completeExceptionally(ProxyException("No proxy configuration found for path: $requestPath"))
-            return future2
+            val future = CompletableFuture<ProxyClient.ProxyResponse>()
+            future.completeExceptionally(ProxyException("No proxy configuration found for path: $requestPath"))
+            return future
         }
 
         log.debug(
@@ -95,13 +95,7 @@ open class ProxyRequestHandler(private val proxyProperties: ProxyProperties) {
      * 获取所有配置的代理路径
      */
     fun getConfiguredPaths(): List<String> {
-        val paths = mutableListOf<String>()
-
-        proxyProperties.route?.forEach { route ->
-            paths.add(route.source)
-        }
-
-        return paths.sorted()
+        return proxyProperties.route?.map { it.source }?.sorted() ?: emptyList()
     }
 
     /**
@@ -115,10 +109,7 @@ open class ProxyRequestHandler(private val proxyProperties: ProxyProperties) {
         initializeRouteMap()
 
         // 清理不可用路由的负载均衡器
-        val currentRouteKeys = mutableSetOf<String>()
-        proxyProperties.route?.forEach { route ->
-            currentRouteKeys.add(route.source)
-        }
+        val currentRouteKeys = proxyProperties.route?.map { it.source }?.toSet() ?: emptySet()
 
         // 移除不再存在的负载均衡器
         loadBalancerCache.keys.removeAll { it !in currentRouteKeys }
@@ -127,24 +118,6 @@ open class ProxyRequestHandler(private val proxyProperties: ProxyProperties) {
             "Proxy configuration cache refreshed, active load balancers: {}, routes: {}",
             loadBalancerCache.size, routeMap.size
         )
-    }
-
-    /**
-     * 关闭所有负载均衡器
-     */
-    fun shutdown() {
-        log.info("Shutting down proxy request handler...")
-
-        loadBalancerCache.values.forEach { loadBalancer ->
-            try {
-                loadBalancer.shutdown()
-            } catch (e: Exception) {
-                log.warn("Failed to shutdown load balancer: {}", e.message)
-            }
-        }
-
-        loadBalancerCache.clear()
-        log.info("Proxy request handler shutdown completed")
     }
 
     /**

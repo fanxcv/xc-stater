@@ -5,7 +5,6 @@ import `fun`.fan.xc.plugin.proxy.handler.ProxyRequestHandler
 import io.netty.handler.codec.http.FullHttpRequest
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.springframework.stereotype.Component
 import org.springframework.web.servlet.HandlerInterceptor
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
@@ -155,16 +154,16 @@ class ProxyInterceptor(private val proxyRequestHandler: ProxyRequestHandler) : H
         }
 
         // 设置必要的headers
-        if (nettyRequest.headers().get("Host") == null) {
+        if (!nettyRequest.headers().contains("Host")) {
             nettyRequest.headers().set("Host", request.serverName + ":" + request.serverPort)
         }
 
-        if (nettyRequest.headers().get("Content-Length") == null) {
+        if (!nettyRequest.headers().contains("Content-Length")) {
             nettyRequest.headers().set("Content-Length", requestBody.size.toString())
         }
 
         // 设置User-Agent
-        if (nettyRequest.headers().get("User-Agent") == null) {
+        if (!nettyRequest.headers().contains("User-Agent")) {
             nettyRequest.headers().set("User-Agent", "Xc-Proxy/1.0")
         }
 
@@ -183,7 +182,7 @@ class ProxyInterceptor(private val proxyRequestHandler: ProxyRequestHandler) : H
             "PATCH" -> io.netty.handler.codec.http.HttpMethod.PATCH
             "OPTIONS" -> io.netty.handler.codec.http.HttpMethod.OPTIONS
             "HEAD" -> io.netty.handler.codec.http.HttpMethod.HEAD
-            else -> io.netty.handler.codec.http.HttpMethod.GET
+            else -> io.netty.handler.codec.http.HttpMethod.valueOf(httpMethod)
         }
     }
 
