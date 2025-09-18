@@ -1,10 +1,14 @@
 package `fun`.fan.xc.plugin.proxy.handler
 
 import `fun`.fan.xc.plugin.proxy.client.ProxyClient
+import `fun`.fan.xc.plugin.proxy.exception.ConnectionPoolTimeoutException
 import `fun`.fan.xc.plugin.proxy.exception.ProxyException
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.util.concurrent.CompletableFuture
+import java.net.ConnectException
+import java.net.UnknownHostException
+import kotlinx.coroutines.*
+import java.util.concurrent.TimeoutException
 import kotlin.random.Random
 
 /**
@@ -27,7 +31,7 @@ import kotlin.random.Random
  * ```
  */
 open class ProxyLoadBalancer(
-    private val proxyClient: ProxyClient = ProxyClient(),
+    private val proxyClient: ProxyClient,
     private val maxRetryCount: Int = 3 // 最大重试次数
 ) {
 
@@ -44,15 +48,13 @@ open class ProxyLoadBalancer(
      * @param timeoutMs 超时时间(毫秒)
      * @return 代理响应
      */
-    fun executeLoadBalancedRequest(
+    suspend fun executeLoadBalancedRequest(
         request: io.netty.handler.codec.http.FullHttpRequest,
         targetUrls: List<WeightedUrl>,
         timeoutMs: Long = 5000
-    ): CompletableFuture<ProxyClient.ProxyResponse> {
+    ): ProxyClient.ProxyResponse {
         if (targetUrls.isEmpty()) {
-            val future = CompletableFuture<ProxyClient.ProxyResponse>()
-            future.completeExceptionally(ProxyException("No target URLs available"))
-            return future
+            throw ProxyException("No target URLs available")
         }
 
         // 计算总权重
@@ -70,108 +72,80 @@ open class ProxyLoadBalancer(
         )
 
         // 执行请求（支持失败重试）
-        return executeWithRetry(request, weightState, timeoutMs)
+        return executeWithRetrySuspend(request, weightState, timeoutMs)
     }
 
     /**
-     * 执行带重试的请求
+     * 执行带重试的请求（协程版本）
      */
-    private fun executeWithRetry(
+    private suspend fun executeWithRetrySuspend(
         request: io.netty.handler.codec.http.FullHttpRequest,
         weightState: WeightState,
         timeoutMs: Long
-    ): CompletableFuture<ProxyClient.ProxyResponse> {
-        val future = CompletableFuture<ProxyClient.ProxyResponse>()
-        executeNextAttempt(request, weightState, timeoutMs, future)
-        return future
-    }
+    ): ProxyClient.ProxyResponse {
+        repeat(maxRetryCount) { retryCount ->
+            val selectedUrl = weightState.selectNext()
+                ?: throw RuntimeException("All target URLs failed after retries")
 
-    /**
-     * 执行下一次尝试
-     */
-    private fun executeNextAttempt(
-        request: io.netty.handler.codec.http.FullHttpRequest,
-        weightState: WeightState,
-        timeoutMs: Long,
-        future: CompletableFuture<ProxyClient.ProxyResponse>,
-        retryCount: Int = 0 // 当前重试次数
-    ) {
-        // 检查是否超过最大重试次数
-        if (retryCount >= maxRetryCount) {
-            val errorMsg = "All target URLs failed after $maxRetryCount retries"
-            log.error(errorMsg)
-            future.completeExceptionally(RuntimeException(errorMsg))
-            return
-        }
+            log.debug("Attempting request to: {} (weight: {})", selectedUrl.url, selectedUrl.weight)
 
-        val selectedUrl = weightState.selectNext()
-
-        if (selectedUrl == null) {
-            // 所有URL都已尝试过，但都失败了
-            val errorMsg = "All target URLs failed after retries"
-            log.error(errorMsg)
-            future.completeExceptionally(RuntimeException(errorMsg))
-            return
-        }
-
-        log.debug("Attempting request to: {} (weight: {})", selectedUrl.url, selectedUrl.weight)
-
-        // 执行单个请求
-        proxyClient.executeProxyRequest(request, selectedUrl.url, timeoutMs)
-            .whenComplete { response, throwable ->
-                if (throwable == null && response != null) {
-                    // 请求成功
-                    if (isSuccessResponse(response.statusCode)) {
-                        log.debug(
-                            "Request succeeded to: {} with status: {}",
-                            selectedUrl.url, response.statusCode
-                        )
-                        // 成功响应后重置失败标记
-                        weightState.resetFailedUrls()
-                        if (!future.isDone) {
-                            future.complete(response)
-                        }
-                    } else {
-                        // 响应状态码表示失败，标记URL并尝试下一个
-                        log.warn(
-                            "Request failed to: {} with status: {}, trying next target",
-                            selectedUrl.url, response.statusCode
-                        )
-                        weightState.markUrlAsFailed(selectedUrl.url)
-                        if (!future.isDone) {
-                            executeNextAttempt(request, weightState, timeoutMs, future, retryCount + 1)
-                        }
-                    }
+            try {
+                val response = proxyClient.executeProxyRequest(request, selectedUrl.url, timeoutMs)
+                
+                if (isSuccessResponse(response.statusCode)) {
+                    log.debug(
+                        "Request succeeded to: {} with status: {}",
+                        selectedUrl.url, response.statusCode
+                    )
+                    // 成功响应后重置失败标记
+                    weightState.resetFailedUrls()
+                    return response
                 } else {
-                    // 请求失败，尝试下一个URL
-                    val errorMsg = if (throwable != null) {
-                        "Request exception to: ${selectedUrl.url} : ${throwable.message}"
-                    } else {
-                        "Request failed to: ${selectedUrl.url} with null response"
-                    }
-
-                    // 根据异常类型记录不同级别的日志
-                    when (throwable) {
-                        is java.util.concurrent.TimeoutException -> {
-                            log.warn("Timeout {}", errorMsg)
-                        }
-                        is java.net.ConnectException -> {
-                            log.warn("Connection failed {}", errorMsg)
-                        }
-                        is java.net.UnknownHostException -> {
-                            log.warn("Unknown host {}", errorMsg)
-                        }
-                        else -> {
-                            log.warn("General error {}", errorMsg)
-                        }
-                    }
-
+                    // 响应状态码表示失败，标记URL并尝试下一个
+                    log.warn(
+                        "Request failed to: {} with status: {}, trying next target",
+                        selectedUrl.url, response.statusCode
+                    )
                     weightState.markUrlAsFailed(selectedUrl.url)
-                    if (!future.isDone) {
-                        executeNextAttempt(request, weightState, timeoutMs, future, retryCount + 1)
+                }
+            } catch (throwable: Exception) {
+                val errorMsg = "Request exception to: ${selectedUrl.url} : ${throwable.message}"
+
+                // 根据异常类型记录不同级别的日志
+                when (throwable) {
+                    is ConnectionPoolTimeoutException -> {
+                        // 连接池超时，快速失败避免级联故障
+                        log.error("Connection pool timeout - {}", errorMsg)
+                        throw throwable
+                    }
+
+                    is TimeoutException -> {
+                        log.warn("Timeout {}", errorMsg)
+                    }
+
+                    is ConnectException -> {
+                        log.warn("Connection failed {}", errorMsg)
+                    }
+
+                    is UnknownHostException -> {
+                        log.warn("Unknown host {}", errorMsg)
+                    }
+
+                    else -> {
+                        log.warn("General error {}", errorMsg)
                     }
                 }
+
+                weightState.markUrlAsFailed(selectedUrl.url)
             }
+
+            // 指数退避
+            if (retryCount < maxRetryCount - 1) {
+                delay(100L * (retryCount + 1))
+            }
+        }
+
+        throw RuntimeException("All target URLs failed after $maxRetryCount retries")
     }
 
     /**

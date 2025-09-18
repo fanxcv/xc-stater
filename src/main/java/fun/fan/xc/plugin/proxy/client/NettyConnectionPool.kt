@@ -1,13 +1,20 @@
 package `fun`.fan.xc.plugin.proxy.client
 
+import `fun`.fan.xc.plugin.proxy.config.ProxyProperties
+import `fun`.fan.xc.plugin.proxy.exception.ConnectionPoolTimeoutException
 import io.netty.bootstrap.Bootstrap
 import io.netty.channel.Channel
 import io.netty.channel.ChannelOption
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel as KChannel
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.net.URI
 import java.util.concurrent.*
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.math.max
 
 /**
  * Netty连接池
@@ -31,17 +38,17 @@ import java.util.concurrent.atomic.AtomicInteger
  * - healthCheckInterval: 健康检查间隔
  * - connectRetryCount: 连接创建失败重试次数
  */
-class NettyConnectionPool(
-    private val maxTotalConnections: Int = 200,
-    private val maxConnectionsPerRoute: Int = 20,
-    private val connectionIdleTimeout: Long = 300000L, // 5分钟
-    private val connectionTimeout: Long = 5000L, // 5秒
-    private val maxWaitQueueSize: Int = 100, // 最大等待队列长度
-    private val healthCheckInterval: Long = 60000L, // 连接健康检查间隔 1分钟
-    private val connectRetryCount: Int = 3 // 连接创建失败重试次数
-) {
+class NettyConnectionPool(private val properties: ProxyProperties) {
 
     private val log: Logger = LoggerFactory.getLogger(NettyConnectionPool::class.java)
+
+    // 配置参数
+    private val maxTotalConnections = properties.pool.maxTotalConnections
+    private val connectionIdleTimeout = properties.pool.connectionIdleTimeout
+    private val connectionTimeout = properties.pool.connectionTimeout
+    private val maxWaitQueueSize = properties.pool.maxWaitQueueSize
+    private val healthCheckInterval = properties.pool.healthCheckInterval
+    private val connectRetryCount = properties.pool.connectRetryCount
 
     // 按路由分组的连接池
     private val routePools = ConcurrentHashMap<String, RouteConnectionPool>()
@@ -49,55 +56,213 @@ class NettyConnectionPool(
     // 全局连接计数器
     private val totalConnections = AtomicInteger(0)
 
-    // 连接池清理定时器
-    private val cleanupTimer: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor { r ->
-        val thread = Thread(r, "NettyConnectionPool-Cleanup")
-        thread.isDaemon = true
-        thread
-    }
+    // 按路由分组的协程等待通道（无阻塞）
+    private val routeWaitChannels = ConcurrentHashMap<String, KChannel<CompletableDeferred<Channel>>>()
+
+    // 协程作用域
+    private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    // 连接池清理定时器（使用协程）
+    private val cleanupJob: Job
+
+    // 健康检查定时器（使用协程）
+    private val healthCheckJob: Job
 
     init {
-        // 启动空闲连接清理任务
-        cleanupTimer.scheduleAtFixedRate(
-            this::cleanupIdleConnections,
-            connectionIdleTimeout / 2,
-            connectionIdleTimeout / 2,
-            TimeUnit.MILLISECONDS
-        )
+        // 启动空闲连接清理任务（协程版本）
+        cleanupJob = coroutineScope.launch {
+            while (isActive) {
+                delay(connectionIdleTimeout / 2)
+                cleanupIdleConnections()
+            }
+        }
+
+        // 启动健康检查任务（协程版本）
+        healthCheckJob = coroutineScope.launch {
+            while (isActive) {
+                delay(healthCheckInterval)
+                healthCheckConnections()
+            }
+        }
 
         log.info(
-            "NettyConnectionPool initialized: maxTotal={}, maxPerRoute={}, idleTimeout={}ms, maxWaitQueueSize={}, healthCheckInterval={}ms, connectRetryCount={}",
-            maxTotalConnections, maxConnectionsPerRoute, connectionIdleTimeout, maxWaitQueueSize, healthCheckInterval, connectRetryCount
+            "NettyConnectionPool initialized with coroutines: maxTotal={}, idleTimeout={}ms, maxWaitQueueSize={}, healthCheckInterval={}ms, connectRetryCount={}",
+            maxTotalConnections,
+            connectionIdleTimeout,
+            maxWaitQueueSize,
+            healthCheckInterval,
+            connectRetryCount
         )
     }
 
+
     /**
-     * 获取连接
+     * 异步获取连接（协程挂起版本）
+     * 无阻塞，推荐使用
      *
      * @param uri 目标URI
      * @return 连接Channel
      */
-    @Throws(TimeoutException::class, InterruptedException::class)
-    fun acquireConnection(uri: URI): Channel {
+    suspend fun acquireConnectionSuspend(uri: URI): Channel {
         val routeKey = getRouteKey(uri)
 
-        // 获取或创建路由连接池
+        // 获取或创建路由连接池，确保每个路由至少有一个连接配额
         val routePool = routePools.getOrPut(routeKey) {
-            RouteConnectionPool()
+            val perRouteConnections = max(1, maxTotalConnections - properties.route.size)
+            RouteConnectionPool(perRouteConnections)
         }
 
-        // 尝试从路由池获取可用连接
-        val channel = routePool.acquireConnection() ?: createNewConnection(routePool, uri)
+        // 首先尝试从路由池获取可用连接
+        val channel = routePool.acquireConnection()
+        if (channel != null) {
+            log.debug("Acquired connection from pool for route: {}", routeKey)
+            return channel
+        }
 
-        log.debug(
-            "Acquired connection for route: {}, active connections: {}/{}",
-            routeKey, totalConnections.get(), maxTotalConnections
+        // 原子性地检查并尝试创建连接，如果失败则进入等待队列
+        return tryCreateConnectionOrWait(routePool, uri)
+    }
+
+    /**
+     * 原子性地尝试创建连接或进入等待队列
+     * 修复竞争条件问题，确保所有请求都能正确处理
+     */
+    private suspend fun tryCreateConnectionOrWait(routePool: RouteConnectionPool, uri: URI): Channel {
+        // 原子性地检查连接池是否有配额并尝试创建连接
+        val currentTotal = totalConnections.get()
+        if (currentTotal < maxTotalConnections) {
+            // 有配额，尝试原子性地增加连接数
+            if (totalConnections.compareAndSet(currentTotal, currentTotal + 1)) {
+                // 成功获取配额，创建连接
+                return try {
+                    createNewConnectionSuspend(routePool, uri)
+                } catch (e: Exception) {
+                    // 创建连接失败，释放配额
+                    totalConnections.decrementAndGet()
+                    throw e
+                }
+            }
+        }
+
+        // 没有配额或CAS失败，进入等待队列
+        log.debug("No connection quota available, entering wait queue for route: {}", getRouteKey(uri))
+        return waitForConnectionSuspend(uri)
+    }
+
+    /**
+     * 等待获取连接（按路由分组的等待队列）
+     */
+    private suspend fun waitForConnectionSuspend(uri: URI): Channel {
+        val routeKey = getRouteKey(uri)
+
+        // 获取或创建路由等待通道
+        val waitChannel = routeWaitChannels.getOrPut(routeKey) {
+            KChannel<CompletableDeferred<Channel>>(maxWaitQueueSize)
+        }
+
+        val deferred = CompletableDeferred<Channel>()
+
+        // 尝试发送到等待通道
+        val sendResult = waitChannel.trySend(deferred)
+        if (sendResult.isFailure) {
+            log.warn("Wait queue exhausted for route: {}", routeKey)
+            throw ConnectionPoolTimeoutException("Wait queue exhausted for route $routeKey")
+        }
+
+        log.info(
+            "Request added to wait queue for route: {}, total connections: {}/{}",
+            routeKey,
+            totalConnections.get(),
+            maxTotalConnections
         )
-        log.info("Connection pool status - route: {}, active: {}, idle: {}, total: {}/{}",
-            routeKey, routePool.getActiveConnectionCount(), routePool.getIdleConnectionCount(),
-            totalConnections.get(), maxTotalConnections)
 
-        return channel
+        // 等待连接可用（带超时）
+        return withTimeout(connectionTimeout) {
+            deferred.await()
+        }
+    }
+
+
+    /**
+     * 通知等待队列有连接可用
+     */
+    private fun notifyWaitQueue(routeKey: String) {
+        val waitChannel = routeWaitChannels[routeKey]
+        if (waitChannel == null) {
+            log.debug("No wait channel found for route: {}", routeKey)
+            return
+        }
+
+        coroutineScope.launch {
+            val deferred = waitChannel.tryReceive().getOrNull()
+            if (deferred == null) {
+                log.debug("No waiting requests in queue for route: {}", routeKey)
+                return@launch
+            }
+
+            log.debug("Processing waiting request for route: {}", routeKey)
+
+            try {
+                val routePool = routePools.getOrPut(routeKey) {
+                    val perRouteConnections = max(1, maxTotalConnections / max(1, properties.route.size))
+                    RouteConnectionPool(perRouteConnections)
+                }
+
+                // 首先尝试从路由池获取可用连接
+                val existingChannel = routePool.acquireConnection()
+                if (existingChannel != null) {
+                    deferred.complete(existingChannel)
+                    log.info("Wait queue: provided existing connection for route: {}", routeKey)
+                } else {
+                    // 没有空闲连接，按新的原子性逻辑为等待队列创建连接
+                    processWaitQueueWithConnectionCreation(routePool, routeKey, deferred, waitChannel)
+                }
+            } catch (e: Exception) {
+                log.error("Error in notifyWaitQueue for route {}: {}", routeKey, e.message, e)
+                deferred.completeExceptionally(e)
+            }
+        }
+    }
+
+    /**
+     * 为等待队列处理带连接创建的请求
+     */
+    private suspend fun processWaitQueueWithConnectionCreation(
+        routePool: RouteConnectionPool,
+        routeKey: String,
+        deferred: CompletableDeferred<Channel>,
+        waitChannel: KChannel<CompletableDeferred<Channel>>
+    ) {
+        // 原子性地尝试为等待队列请求创建连接
+        val currentTotal = totalConnections.get()
+        if (currentTotal < maxTotalConnections) {
+            // 有配额，尝试原子性地增加连接数
+            if (totalConnections.compareAndSet(currentTotal, currentTotal + 1)) {
+                // 成功获取配额，为等待队列创建连接
+                try {
+                    val uri = parseRouteKeyToUri(routeKey)
+                    val newChannel = createNewConnectionSuspend(routePool, uri)
+                    deferred.complete(newChannel)
+                    log.info("Wait queue: created new connection for route: {}", routeKey)
+                    return
+                } catch (e: Exception) {
+                    // 创建连接失败，释放配额
+                    totalConnections.decrementAndGet()
+                    log.warn("Failed to create new connection for wait queue, route: {}: {}", routeKey, e.message)
+                    deferred.completeExceptionally(e)
+                    return
+                }
+            }
+        }
+
+        // 没有配额或CAS失败，重新放回队列等待下次机会
+        val sendResult = waitChannel.trySend(deferred)
+        if (sendResult.isFailure) {
+            log.warn("Wait channel full when trying to re-add request for route: {}", routeKey)
+            deferred.completeExceptionally(ConnectionPoolTimeoutException("No available connection and wait queue full"))
+        } else {
+            log.debug("No available connection quota, wait queue request re-queued for route: {}", routeKey)
+        }
     }
 
     /**
@@ -109,6 +274,11 @@ class NettyConnectionPool(
         if (!channel.isActive) {
             log.debug("Channel is not active, closing: {}", channel)
             closeChannel(channel)
+            // 连接关闭时也要通知等待队列，可能可以创建新连接
+            val routeKey = channel.attr(ROUTE_KEY_ATTR).get()
+            if (routeKey != null) {
+                notifyWaitQueue(routeKey)
+            }
             return
         }
 
@@ -122,7 +292,10 @@ class NettyConnectionPool(
         val routePool = routePools[routeKey]
         if (routePool != null) {
             routePool.releaseConnection(channel)
-            log.debug("Released connection for route: {}", routeKey)
+            log.info("Released connection for route: {}, notifying wait queue", routeKey)
+
+            // 通知等待队列有连接可用
+            notifyWaitQueue(routeKey)
         } else {
             log.warn("No route pool found for route: {}, closing channel: {}", routeKey, channel)
             closeChannel(channel)
@@ -130,21 +303,9 @@ class NettyConnectionPool(
     }
 
     /**
-     * 创建新连接
+     * 创建新连接（连接数已在调用方检查）
      */
-    @Throws(TimeoutException::class, InterruptedException::class)
-    private fun createNewConnection(routePool: RouteConnectionPool, uri: URI): Channel {
-        // 检查全局连接数限制
-        while (true) {
-            val currentTotal = totalConnections.get()
-            if (currentTotal >= maxTotalConnections) {
-                throw TimeoutException("Connection pool exhausted: max total connections reached")
-            }
-            if (totalConnections.compareAndSet(currentTotal, currentTotal + 1)) {
-                break
-            }
-        }
-
+    private suspend fun createNewConnectionSuspend(routePool: RouteConnectionPool, uri: URI): Channel {
         try {
             val clientFactory = NettyClientFactory.getInstance()
             val bootstrap = Bootstrap()
@@ -177,23 +338,28 @@ class NettyConnectionPool(
             bootstrap.handler(initializer)
 
             // 连接超时控制
-            val connectFuture = bootstrap.connect(uri.host, port)
-            val completed = connectFuture.await(connectionTimeout, TimeUnit.MILLISECONDS)
+            val channel = withTimeout(connectionTimeout) {
+                suspendCancellableCoroutine<Channel> { continuation ->
+                    val connectFuture = bootstrap.connect(uri.host, port)
 
-            if (!completed) {
-                connectFuture.cancel(true)
-                throw TimeoutException("Connection timeout to ${uri.host}:${port}")
+                    continuation.invokeOnCancellation {
+                        connectFuture.cancel(true)
+                    }
+
+                    connectFuture.addListener { future ->
+                        if (future.isSuccess) {
+                            continuation.resume(connectFuture.channel())
+                        } else {
+                            continuation.resumeWithException(
+                                future.cause() ?: TimeoutException("Failed to connect to ${uri.host}:${port}")
+                            )
+                        }
+                    }
+                }
             }
-
-            if (!connectFuture.isSuccess) {
-                throw connectFuture.cause() ?: TimeoutException("Failed to connect to ${uri.host}:${port}")
-            }
-
-            val channel = connectFuture.channel()
 
             // 设置路由键属性
-            val routeKey = getRouteKey(uri)
-            channel.attr(ROUTE_KEY_ATTR).set(routeKey)
+            channel.attr(ROUTE_KEY_ATTR).set(getRouteKey(uri))
 
             // 创建连接信息并添加到路由池
             val connectionInfo = ConnectionInfo(channel, System.currentTimeMillis())
@@ -201,12 +367,11 @@ class NettyConnectionPool(
 
             log.info(
                 "Created new connection for route: {}, total connections: {}/{}",
-                routeKey, totalConnections.get(), maxTotalConnections
+                getRouteKey(uri), totalConnections.get(), maxTotalConnections
             )
 
             return channel
         } catch (e: Exception) {
-            totalConnections.decrementAndGet()
             log.error("Failed to create connection for route {}: {}", getRouteKey(uri), e.message)
             throw e
         }
@@ -218,8 +383,20 @@ class NettyConnectionPool(
     private fun closeChannel(channel: Channel) {
         if (channel.isActive) {
             channel.close()
-            totalConnections.decrementAndGet()
-            log.debug("Closed connection: {}", channel)
+        }
+        val previousCount = totalConnections.getAndDecrement()
+        if (previousCount > 0) {
+            log.debug(
+                "Closed connection: {}, total connections: {}/{}",
+                channel,
+                totalConnections.get(),
+                maxTotalConnections
+            )
+
+            // 连接关闭后，通知所有等待队列可能有空间创建新连接
+            routeWaitChannels.keys.forEach { routeKey ->
+                notifyWaitQueue(routeKey)
+            }
         }
     }
 
@@ -233,6 +410,13 @@ class NettyConnectionPool(
             uri.port
         }
         return "${uri.scheme}://${uri.host}:$port"
+    }
+
+    /**
+     * 从路由键解析回 URI
+     */
+    private fun parseRouteKeyToUri(routeKey: String): URI {
+        return URI.create(routeKey)
     }
 
     /**
@@ -256,13 +440,61 @@ class NettyConnectionPool(
     }
 
     /**
+     * 处理等待队列
+     */
+
+    /**
+     * 带重试的连接创建（已弃用 - 连接数检查现在由tryCreateConnectionOrWait处理）
+     * @deprecated 这个方法不再使用，因为竞争条件问题已在tryCreateConnectionOrWait中解决
+     */
+    @Deprecated("Use tryCreateConnectionOrWait instead")
+    private suspend fun createNewConnectionWithRetrySuspend(routePool: RouteConnectionPool, uri: URI): Channel {
+        throw UnsupportedOperationException("This method should not be called anymore")
+    }
+
+    /**
+     * 健康检查连接
+     */
+    private fun healthCheckConnections() {
+        var totalChecked = 0
+        var totalFailed = 0
+
+        routePools.values.forEach { routePool ->
+            val (checked, failed) = routePool.healthCheckConnections()
+            totalChecked += checked
+            totalFailed += failed
+        }
+
+        if (totalFailed > 0) {
+            log.info(
+                "Health check completed: checked={}, failed={}, total connections={}/{}",
+                totalChecked, totalFailed, totalConnections.get(), maxTotalConnections
+            )
+        } else if (totalChecked > 0) {
+            log.debug("Health check completed: all {} connections are healthy", totalChecked)
+        }
+    }
+
+    /**
      * 关闭连接池
      */
     fun shutdown() {
         log.info("Shutting down connection pool...")
 
-        // 取消清理任务
-        cleanupTimer.shutdown()
+        // 取消所有协程任务
+        cleanupJob.cancel()
+        healthCheckJob.cancel()
+        coroutineScope.cancel()
+
+        // 清空所有路由等待通道并拒绝所有等待请求
+        routeWaitChannels.values.forEach { waitChannel ->
+            while (true) {
+                val deferred = waitChannel.tryReceive().getOrNull() ?: break
+                deferred.completeExceptionally(TimeoutException("Connection pool shutdown"))
+            }
+            waitChannel.close()
+        }
+        routeWaitChannels.clear()
 
         // 关闭所有连接
         routePools.values.forEach { routePool ->
@@ -276,21 +508,8 @@ class NettyConnectionPool(
     /**
      * 路由连接池
      */
-    private inner class RouteConnectionPool() {
+    private inner class RouteConnectionPool(@Suppress("UNUSED_PARAMETER") maxConnections: Int = maxTotalConnections) {
 
-        /**
-         * 获取活跃连接数
-         */
-        fun getActiveConnectionCount(): Int {
-            return activeConnections.size
-        }
-
-        /**
-         * 获取空闲连接数
-         */
-        fun getIdleConnectionCount(): Int {
-            return idleConnections.size
-        }
         private val activeConnections = ConcurrentHashMap<Channel, ConnectionInfo>()
         private val idleConnections = ConcurrentLinkedDeque<ConnectionInfo>()
         private val connectionLock = Any()
@@ -363,6 +582,65 @@ class NettyConnectionPool(
             }
 
             return cleaned
+        }
+
+        /**
+         * 健康检查连接
+         */
+        fun healthCheckConnections(): Pair<Int, Int> {
+            var checked = 0
+            var failed = 0
+
+            synchronized(connectionLock) {
+                // 检查空闲连接
+                val idleIterator = idleConnections.iterator()
+                while (idleIterator.hasNext()) {
+                    val connectionInfo = idleIterator.next()
+                    val channel = connectionInfo.channel
+
+                    if (!channel.isActive) {
+                        // 连接已关闭
+                        idleIterator.remove()
+                        totalConnections.decrementAndGet()
+                        failed++
+                        log.debug("Health check: idle connection closed - {}", channel)
+                    } else {
+                        // 简单健康检查：尝试写入一个空操作
+                        try {
+                            if (channel.isWritable) {
+                                // 连接健康
+                                checked++
+                            } else {
+                                // 连接不可写，可能有问题
+                                idleIterator.remove()
+                                closeChannel(channel)
+                                failed++
+                                log.debug("Health check: idle connection not writable - {}", channel)
+                            }
+                        } catch (e: Exception) {
+                            // 健康检查失败
+                            idleIterator.remove()
+                            closeChannel(channel)
+                            failed++
+                            log.debug("Health check: idle connection failed - {}: {}", channel, e.message)
+                        }
+                    }
+                }
+
+                // 检查活跃连接（虽然通常在释放时会检查）
+                val activeIterator = activeConnections.entries.iterator()
+                while (activeIterator.hasNext()) {
+                    val (channel, _) = activeIterator.next()
+                    if (!channel.isActive) {
+                        activeIterator.remove()
+                        totalConnections.decrementAndGet()
+                        failed++
+                        log.debug("Health check: active connection closed - {}", channel)
+                    }
+                }
+            }
+
+            return Pair(checked, failed)
         }
 
         /**

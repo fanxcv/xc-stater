@@ -1,7 +1,6 @@
 package `fun`.fan.xc.plugin.proxy
 
 import `fun`.fan.xc.plugin.proxy.client.NettyClientFactory
-import `fun`.fan.xc.plugin.proxy.client.NettyConnectionPool
 import `fun`.fan.xc.plugin.proxy.config.ProxyProperties
 import `fun`.fan.xc.plugin.proxy.handler.ProxyRequestHandler
 import `fun`.fan.xc.plugin.proxy.interceptor.ProxyInterceptor
@@ -42,20 +41,6 @@ class XcProxyAutoConfiguration(
     @ConditionalOnMissingBean(NettyClientFactory::class)
     fun nettyClientFactory(): NettyClientFactory {
         return NettyClientFactory.getInstance()
-    }
-
-    /**
-     * 创建连接池
-     */
-    @Bean
-    @ConditionalOnMissingBean(NettyConnectionPool::class)
-    fun nettyConnectionPool(): NettyConnectionPool {
-        return NettyConnectionPool(
-            maxTotalConnections = 200,
-            maxConnectionsPerRoute = 20,
-            connectionIdleTimeout = 300000L, // 5分钟
-            connectionTimeout = properties.timeout.toLong() // 使用配置的超时时间
-        )
     }
 
     /**

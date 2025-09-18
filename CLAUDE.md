@@ -129,6 +129,9 @@ graph TD
 ### 配置方式
 - 通过 `application.yml` 或 `application.properties` 配置相关参数
 
+### 命令
+- 编译: ./mvnw -q -DskipTests package
+
 ## 测试策略
 
 从代码分析来看，该项目目前没有包含专门的测试类或测试配置。建议补充以下测试：

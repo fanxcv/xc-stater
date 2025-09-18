@@ -7,7 +7,7 @@ import `fun`.fan.xc.plugin.proxy.config.ProxyRoute
 import `fun`.fan.xc.plugin.proxy.exception.ProxyException
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.util.concurrent.CompletableFuture
+import kotlinx.coroutines.*
 
 /**
  * 代理请求处理器
@@ -15,7 +15,10 @@ import java.util.concurrent.CompletableFuture
  *
  * @author fan
  */
-open class ProxyRequestHandler(private val proxyProperties: ProxyProperties) {
+open class ProxyRequestHandler(
+    private val proxyProperties: ProxyProperties,
+    private val proxyClient: ProxyClient
+) {
 
     private val log: Logger = LoggerFactory.getLogger(ProxyRequestHandler::class.java)
 
@@ -51,17 +54,13 @@ open class ProxyRequestHandler(private val proxyProperties: ProxyProperties) {
      * @param request HTTP请求
      * @return 代理响应
      */
-    fun handleProxyRequest(
+    suspend fun handleProxyRequest(
         requestPath: String,
         request: io.netty.handler.codec.http.FullHttpRequest
-    ): CompletableFuture<ProxyClient.ProxyResponse> {
+    ): ProxyClient.ProxyResponse {
         // 查找匹配的代理配置
         val matchedConfig = findMatchingProxyConfig(requestPath)
-        if (matchedConfig == null) {
-            val future = CompletableFuture<ProxyClient.ProxyResponse>()
-            future.completeExceptionally(ProxyException("No proxy configuration found for path: $requestPath"))
-            return future
-        }
+            ?: throw ProxyException("No proxy configuration found for path: $requestPath")
 
         log.debug(
             "Found proxy configuration: source={}, targets={}",
@@ -76,7 +75,7 @@ open class ProxyRequestHandler(private val proxyProperties: ProxyProperties) {
         // 获取或创建负载均衡器
         val loadBalancerKey = matchedConfig.route.source
         val loadBalancer = loadBalancerCache.getOrPut(loadBalancerKey) {
-            ProxyLoadBalancer()
+            ProxyLoadBalancer(proxyClient)
         }
 
         // 执行负载均衡请求

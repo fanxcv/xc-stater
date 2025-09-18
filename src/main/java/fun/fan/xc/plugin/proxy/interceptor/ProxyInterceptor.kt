@@ -3,9 +3,11 @@ package `fun`.fan.xc.plugin.proxy.interceptor
 import `fun`.fan.xc.plugin.proxy.exception.ProxyException
 import `fun`.fan.xc.plugin.proxy.handler.ProxyRequestHandler
 import io.netty.handler.codec.http.FullHttpRequest
+import kotlinx.coroutines.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.web.servlet.HandlerInterceptor
+import java.util.concurrent.TimeoutException
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
@@ -61,16 +63,21 @@ class ProxyInterceptor(private val proxyRequestHandler: ProxyRequestHandler) : H
             val nettyRequest = buildNettyHttpRequest(request)
 
             // 执行代理请求
-            val responseFuture = proxyRequestHandler.handleProxyRequest(request.requestURI, nettyRequest)
-
-            // 等待响应（设置超时时间）
-            val proxyResponse = responseFuture.get(30, java.util.concurrent.TimeUnit.SECONDS)
+            log.debug("Executing proxy request for: {}", request.requestURI)
+            val proxyResponse = runBlocking {
+                withTimeout(30000) {
+                    proxyRequestHandler.handleProxyRequest(request.requestURI, nettyRequest)
+                }
+            }
+            
+            log.debug("Received proxy response: status={}, headers={}, bodySize={}", 
+                proxyResponse.statusCode, proxyResponse.headers.size, proxyResponse.body.size)
 
             // 设置响应状态码
             response.status = proxyResponse.statusCode
 
             // 透传响应头
-            proxyResponse.headers.forEach { (name, value) ->
+            proxyResponse.headers.entries.forEach { (name, value) ->
                 // 跳过一些特殊的响应头
                 when (name.lowercase()) {
                     "connection", "content-length", "transfer-encoding", "date", "server" -> {
@@ -89,19 +96,19 @@ class ProxyInterceptor(private val proxyRequestHandler: ProxyRequestHandler) : H
                 response.outputStream.flush()
             }
 
-            log.debug(
-                "Proxy request completed: {} -> {}, status: {}",
-                request.requestURI, proxyConfig.targets.first().uri, proxyResponse.statusCode
+            log.info(
+                "Proxy request completed: {} -> {}, status: {}, bodySize: {}",
+                request.requestURI, proxyConfig.targets.first().uri, proxyResponse.statusCode, proxyResponse.body.size
             )
 
             return false // 已处理完成，不再进入Controller
-        } catch (e: java.util.concurrent.TimeoutException) {
-            log.error("Proxy request timeout: {} : {}", request.requestURI, e.message)
+        } catch (e: TimeoutException) {
+            log.error("Proxy request timeout: {} : {}", request.requestURI, e.message, e)
             response.status = HttpServletResponse.SC_GATEWAY_TIMEOUT
             response.writer.write("Proxy request timeout: ${e.message}")
             return false
         } catch (e: Exception) {
-            log.error("Failed to proxy request: {} : {}", request.requestURI, e.message)
+            log.error("Failed to proxy request: {} : {}", request.requestURI, e.message, e)
             response.status = HttpServletResponse.SC_BAD_GATEWAY
             response.writer.write("Failed to proxy request: ${e.message}")
             return false
@@ -118,7 +125,7 @@ class ProxyInterceptor(private val proxyRequestHandler: ProxyRequestHandler) : H
         // 读取请求体
         val requestBody = try {
             request.inputStream.readBytes()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             ByteArray(0)
         }
 
