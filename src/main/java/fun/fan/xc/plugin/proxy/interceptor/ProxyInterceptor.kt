@@ -23,11 +23,8 @@ class ProxyInterceptor(private val proxyRequestHandler: ProxyRequestHandler) : H
     override fun preHandle(request: HttpServletRequest, response: HttpServletResponse, handler: Any): Boolean {
         try {
             // 检查是否需要代理此请求
-            val proxyConfig = proxyRequestHandler.findMatchingProxyConfig(request.requestURI)
-            if (proxyConfig == null) {
-                log.debug("No proxy configuration found for path: {}", request.requestURI)
-                return true // 不需要代理，继续正常处理
-            }
+            val proxyConfig =
+                proxyRequestHandler.findMatchingProxyConfig(request.requestURI) ?: return true // 不需要代理，继续正常处理
 
             log.info(
                 "Proxying request: {} to targets: {}", request.requestURI,
@@ -57,21 +54,16 @@ class ProxyInterceptor(private val proxyRequestHandler: ProxyRequestHandler) : H
         response: HttpServletResponse,
         proxyConfig: ProxyRequestHandler.ProxyConfigMatch
     ): Boolean {
-
         try {
             // 构建Netty HTTP请求
             val nettyRequest = buildNettyHttpRequest(request)
 
             // 执行代理请求
-            log.debug("Executing proxy request for: {}", request.requestURI)
             val proxyResponse = runBlocking {
                 withTimeout(30000) {
                     proxyRequestHandler.handleProxyRequest(request.requestURI, nettyRequest)
                 }
             }
-            
-            log.debug("Received proxy response: status={}, headers={}, bodySize={}", 
-                proxyResponse.statusCode, proxyResponse.headers.size, proxyResponse.body.size)
 
             // 设置响应状态码
             response.status = proxyResponse.statusCode
@@ -103,12 +95,12 @@ class ProxyInterceptor(private val proxyRequestHandler: ProxyRequestHandler) : H
 
             return false // 已处理完成，不再进入Controller
         } catch (e: TimeoutException) {
-            log.error("Proxy request timeout: {} : {}", request.requestURI, e.message, e)
+            log.error("Proxy request timeout: {} : {}", request.requestURI, e.message)
             response.status = HttpServletResponse.SC_GATEWAY_TIMEOUT
             response.writer.write("Proxy request timeout: ${e.message}")
             return false
         } catch (e: Exception) {
-            log.error("Failed to proxy request: {} : {}", request.requestURI, e.message, e)
+            log.error("Failed to proxy request: {} : {}", request.requestURI, e.message)
             response.status = HttpServletResponse.SC_BAD_GATEWAY
             response.writer.write("Failed to proxy request: ${e.message}")
             return false

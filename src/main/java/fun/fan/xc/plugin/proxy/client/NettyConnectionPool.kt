@@ -115,7 +115,6 @@ class NettyConnectionPool(private val properties: ProxyProperties) {
         // 首先尝试从路由池获取可用连接
         val channel = routePool.acquireConnection()
         if (channel != null) {
-            log.debug("Acquired connection from pool for route: {}", routeKey)
             return channel
         }
 
@@ -145,7 +144,6 @@ class NettyConnectionPool(private val properties: ProxyProperties) {
         }
 
         // 没有配额或CAS失败，进入等待队列
-        log.debug("No connection quota available, entering wait queue for route: {}", getRouteKey(uri))
         return waitForConnectionSuspend(uri)
     }
 
@@ -157,7 +155,7 @@ class NettyConnectionPool(private val properties: ProxyProperties) {
 
         // 获取或创建路由等待通道
         val waitChannel = routeWaitChannels.getOrPut(routeKey) {
-            KChannel<CompletableDeferred<Channel>>(maxWaitQueueSize)
+            KChannel(maxWaitQueueSize)
         }
 
         val deferred = CompletableDeferred<Channel>()
@@ -169,12 +167,7 @@ class NettyConnectionPool(private val properties: ProxyProperties) {
             throw ConnectionPoolTimeoutException("Wait queue exhausted for route $routeKey")
         }
 
-        log.info(
-            "Request added to wait queue for route: {}, total connections: {}/{}",
-            routeKey,
-            totalConnections.get(),
-            maxTotalConnections
-        )
+        log.debug("Request entered wait queue for route: {}", routeKey)
 
         // 等待连接可用（带超时）
         return withTimeout(connectionTimeout) {
@@ -187,20 +180,10 @@ class NettyConnectionPool(private val properties: ProxyProperties) {
      * 通知等待队列有连接可用
      */
     private fun notifyWaitQueue(routeKey: String) {
-        val waitChannel = routeWaitChannels[routeKey]
-        if (waitChannel == null) {
-            log.debug("No wait channel found for route: {}", routeKey)
-            return
-        }
+        val waitChannel = routeWaitChannels[routeKey] ?: return
 
         coroutineScope.launch {
-            val deferred = waitChannel.tryReceive().getOrNull()
-            if (deferred == null) {
-                log.debug("No waiting requests in queue for route: {}", routeKey)
-                return@launch
-            }
-
-            log.debug("Processing waiting request for route: {}", routeKey)
+            val deferred = waitChannel.tryReceive().getOrNull() ?: return@launch
 
             try {
                 val routePool = routePools.getOrPut(routeKey) {
@@ -212,7 +195,6 @@ class NettyConnectionPool(private val properties: ProxyProperties) {
                 val existingChannel = routePool.acquireConnection()
                 if (existingChannel != null) {
                     deferred.complete(existingChannel)
-                    log.info("Wait queue: provided existing connection for route: {}", routeKey)
                 } else {
                     // 没有空闲连接，按新的原子性逻辑为等待队列创建连接
                     processWaitQueueWithConnectionCreation(routePool, routeKey, deferred, waitChannel)
@@ -243,12 +225,11 @@ class NettyConnectionPool(private val properties: ProxyProperties) {
                     val uri = parseRouteKeyToUri(routeKey)
                     val newChannel = createNewConnectionSuspend(routePool, uri)
                     deferred.complete(newChannel)
-                    log.info("Wait queue: created new connection for route: {}", routeKey)
                     return
                 } catch (e: Exception) {
                     // 创建连接失败，释放配额
                     totalConnections.decrementAndGet()
-                    log.warn("Failed to create new connection for wait queue, route: {}: {}", routeKey, e.message)
+                    log.warn("Failed to create connection for wait queue: {}", routeKey)
                     deferred.completeExceptionally(e)
                     return
                 }
@@ -258,10 +239,8 @@ class NettyConnectionPool(private val properties: ProxyProperties) {
         // 没有配额或CAS失败，重新放回队列等待下次机会
         val sendResult = waitChannel.trySend(deferred)
         if (sendResult.isFailure) {
-            log.warn("Wait channel full when trying to re-add request for route: {}", routeKey)
+            log.warn("Wait channel full for route: {}", routeKey)
             deferred.completeExceptionally(ConnectionPoolTimeoutException("No available connection and wait queue full"))
-        } else {
-            log.debug("No available connection quota, wait queue request re-queued for route: {}", routeKey)
         }
     }
 
@@ -272,7 +251,6 @@ class NettyConnectionPool(private val properties: ProxyProperties) {
      */
     fun releaseConnection(channel: Channel) {
         if (!channel.isActive) {
-            log.debug("Channel is not active, closing: {}", channel)
             closeChannel(channel)
             // 连接关闭时也要通知等待队列，可能可以创建新连接
             val routeKey = channel.attr(ROUTE_KEY_ATTR).get()
@@ -284,7 +262,6 @@ class NettyConnectionPool(private val properties: ProxyProperties) {
 
         val routeKey = channel.attr(ROUTE_KEY_ATTR).get()
         if (routeKey == null) {
-            log.warn("Channel has no route key attribute, closing: {}", channel)
             closeChannel(channel)
             return
         }
@@ -292,12 +269,11 @@ class NettyConnectionPool(private val properties: ProxyProperties) {
         val routePool = routePools[routeKey]
         if (routePool != null) {
             routePool.releaseConnection(channel)
-            log.info("Released connection for route: {}, notifying wait queue", routeKey)
+            log.debug("Connection released for route: {}", routeKey)
 
             // 通知等待队列有连接可用
             notifyWaitQueue(routeKey)
         } else {
-            log.warn("No route pool found for route: {}, closing channel: {}", routeKey, channel)
             closeChannel(channel)
         }
     }
@@ -365,10 +341,7 @@ class NettyConnectionPool(private val properties: ProxyProperties) {
             val connectionInfo = ConnectionInfo(channel, System.currentTimeMillis())
             routePool.addConnection(connectionInfo)
 
-            log.info(
-                "Created new connection for route: {}, total connections: {}/{}",
-                getRouteKey(uri), totalConnections.get(), maxTotalConnections
-            )
+            log.debug("Created new connection for route: {}", getRouteKey(uri))
 
             return channel
         } catch (e: Exception) {
@@ -442,15 +415,6 @@ class NettyConnectionPool(private val properties: ProxyProperties) {
     /**
      * 处理等待队列
      */
-
-    /**
-     * 带重试的连接创建（已弃用 - 连接数检查现在由tryCreateConnectionOrWait处理）
-     * @deprecated 这个方法不再使用，因为竞争条件问题已在tryCreateConnectionOrWait中解决
-     */
-    @Deprecated("Use tryCreateConnectionOrWait instead")
-    private suspend fun createNewConnectionWithRetrySuspend(routePool: RouteConnectionPool, uri: URI): Channel {
-        throw UnsupportedOperationException("This method should not be called anymore")
-    }
 
     /**
      * 健康检查连接
@@ -603,7 +567,6 @@ class NettyConnectionPool(private val properties: ProxyProperties) {
                         idleIterator.remove()
                         totalConnections.decrementAndGet()
                         failed++
-                        log.debug("Health check: idle connection closed - {}", channel)
                     } else {
                         // 简单健康检查：尝试写入一个空操作
                         try {
@@ -615,14 +578,12 @@ class NettyConnectionPool(private val properties: ProxyProperties) {
                                 idleIterator.remove()
                                 closeChannel(channel)
                                 failed++
-                                log.debug("Health check: idle connection not writable - {}", channel)
                             }
-                        } catch (e: Exception) {
+                        } catch (_: Exception) {
                             // 健康检查失败
                             idleIterator.remove()
                             closeChannel(channel)
                             failed++
-                            log.debug("Health check: idle connection failed - {}: {}", channel, e.message)
                         }
                     }
                 }
@@ -635,7 +596,6 @@ class NettyConnectionPool(private val properties: ProxyProperties) {
                         activeIterator.remove()
                         totalConnections.decrementAndGet()
                         failed++
-                        log.debug("Health check: active connection closed - {}", channel)
                     }
                 }
             }

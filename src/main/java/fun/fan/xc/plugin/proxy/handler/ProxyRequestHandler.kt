@@ -7,7 +7,6 @@ import `fun`.fan.xc.plugin.proxy.config.ProxyRoute
 import `fun`.fan.xc.plugin.proxy.exception.ProxyException
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import kotlinx.coroutines.*
 
 /**
  * 代理请求处理器
@@ -39,12 +38,9 @@ open class ProxyRequestHandler(
         proxyProperties.route?.forEach { route ->
             if (route.target != null && route.target.isNotEmpty()) {
                 routeMap[route.source] = ProxyConfigMatch(route, route.target)
-                log.debug(
-                    "Initialized route mapping: source={} -> targets={}",
-                    route.source, route.target.map { it.uri })
             }
         }
-        log.info("Route map initialized with {} routes", routeMap.size)
+        log.info("Initialized {} proxy routes", routeMap.size)
     }
 
     /**
@@ -62,10 +58,6 @@ open class ProxyRequestHandler(
         val matchedConfig = findMatchingProxyConfig(requestPath)
             ?: throw ProxyException("No proxy configuration found for path: $requestPath")
 
-        log.debug(
-            "Found proxy configuration: source={}, targets={}",
-            matchedConfig.route.source,
-            matchedConfig.targets.map { it.uri })
 
         // 构建目标URL列表
         val weightedUrls = matchedConfig.targets.map { target ->
@@ -88,35 +80,6 @@ open class ProxyRequestHandler(
     fun findMatchingProxyConfig(requestPath: String): ProxyConfigMatch? {
         // 直接从路由映射缓存中查找
         return routeMap[requestPath]
-    }
-
-    /**
-     * 获取所有配置的代理路径
-     */
-    fun getConfiguredPaths(): List<String> {
-        return proxyProperties.route?.map { it.source }?.sorted() ?: emptyList()
-    }
-
-    /**
-     * 刷新配置缓存
-     */
-    fun refreshConfig() {
-        log.info("Refreshing proxy configuration cache...")
-
-        // 重新初始化路由映射
-        routeMap.clear()
-        initializeRouteMap()
-
-        // 清理不可用路由的负载均衡器
-        val currentRouteKeys = proxyProperties.route?.map { it.source }?.toSet() ?: emptySet()
-
-        // 移除不再存在的负载均衡器
-        loadBalancerCache.keys.removeAll { it !in currentRouteKeys }
-
-        log.info(
-            "Proxy configuration cache refreshed, active load balancers: {}, routes: {}",
-            loadBalancerCache.size, routeMap.size
-        )
     }
 
     /**

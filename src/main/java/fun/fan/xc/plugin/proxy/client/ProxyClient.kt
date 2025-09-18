@@ -36,8 +36,6 @@ open class ProxyClient(private val connectionPool: NettyConnectionPool) {
 
     private val log: Logger = LoggerFactory.getLogger(ProxyClient::class.java)
 
-    companion object {}
-
     /**
      * 执行HTTP代理请求
      *
@@ -55,7 +53,6 @@ open class ProxyClient(private val connectionPool: NettyConnectionPool) {
         return withTimeout(timeoutMs) {
             try {
                 val uri = URI(targetUrl)
-                log.debug("Executing proxy request to: {}", targetUrl)
 
                 // 获取连接
                 val channel = connectionPool.acquireConnectionSuspend(uri)
@@ -64,92 +61,62 @@ open class ProxyClient(private val connectionPool: NettyConnectionPool) {
                 val proxyRequest = buildProxyRequest(request, uri)
 
                 // 发送请求并等待响应
-                suspendCancellableCoroutine<ProxyResponse> { continuation ->
+                suspendCancellableCoroutine { continuation ->
                     var handlerAdded = false
-                    
+
                     continuation.invokeOnCancellation {
                         // 清理处理器和释放连接
                         try {
                             if (handlerAdded && channel.pipeline().get("proxyHandler") != null) {
                                 channel.pipeline().remove("proxyHandler")
                             }
-                        } catch (e: Exception) {
-                            log.debug("Failed to remove proxyHandler on cancellation: {}", e.message)
+                        } catch (_: Exception) {
+                            // 忽略清理异常
                         }
                         releaseConnection(channel)
                     }
 
                     channel.writeAndFlush(proxyRequest).addListener { futureListener ->
                         if (futureListener.isSuccess) {
-                            log.debug("Proxy request sent successfully to: {}", targetUrl)
-
                             // 设置响应处理器
                             if (channel.pipeline().get("proxyHandler") != null) {
                                 try {
                                     channel.pipeline().remove("proxyHandler")
-                                } catch (e: Exception) {
-                                    log.debug("Failed to remove existing proxyHandler: {}", e.message)
+                                } catch (_: Exception) {
+                                    // 忽略清理异常
                                 }
                             }
 
                             val handler = object : SimpleChannelInboundHandler<HttpObject>() {
                                 private var httpResponse: HttpResponse? = null
                                 private val contentBuffer = mutableListOf<ByteArray>()
-                                
+
                                 override fun channelRead0(ctx: io.netty.channel.ChannelHandlerContext, msg: HttpObject) {
                                     try {
-                                        log.debug("Received HTTP object: {}", msg.javaClass.simpleName)
                                         when (msg) {
                                             is FullHttpResponse -> {
-                                                // 完整的HTTP响应（包含头和体）- 这是HttpObjectAggregator聚合后的结果
-                                                log.debug("Received FullHttpResponse with status: {}", msg.status())
-                                                
+                                                // 完整的HTTP响应（包含头和体）
                                                 val statusCode = msg.status().code()
                                                 val headers = mutableMapOf<String, String>()
                                                 msg.headers().forEach { entry ->
                                                     headers[entry.key] = entry.value
                                                 }
-                                                
+
                                                 val bodyBytes = if (msg.content().isReadable) {
                                                     val bytes = ByteArray(msg.content().readableBytes())
                                                     msg.content().readBytes(bytes)
-                                                    log.debug("Read {} bytes from FullHttpResponse content", bytes.size)
                                                     bytes
                                                 } else {
-                                                    log.debug("No readable content in FullHttpResponse")
                                                     ByteArray(0)
                                                 }
-                                                
-                                                val proxyResponse = ProxyResponse(statusCode, headers, bodyBytes)
-                                                
-                                                // 清理处理器
-                                                try {
-                                                    channel.pipeline().remove(this)
-                                                } catch (e: Exception) {
-                                                    log.debug("Failed to remove proxyHandler: {}", e.message)
-                                                }
-                                                
-                                                // 释放连接
-                                                releaseConnection(channel)
-                                                
-                                                // 记录请求处理时间
-                                                val endTime = System.currentTimeMillis()
-                                                val duration = endTime - startTime
-                                                log.info(
-                                                    "Proxy request to {} completed with status {} in {}ms, body size: {} bytes",
-                                                    targetUrl,
-                                                    proxyResponse.statusCode,
-                                                    duration,
-                                                    bodyBytes.size
+
+                                                completeProxyResponse(
+                                                    channel, statusCode, headers, bodyBytes, targetUrl, startTime,
+                                                    continuation, this
                                                 )
-                                                
-                                                if (continuation.isActive) {
-                                                    continuation.resume(proxyResponse)
-                                                }
                                             }
                                             is HttpResponse -> {
                                                 // HTTP响应头（非聚合模式）
-                                                log.debug("Received HttpResponse with status: {}", msg.status())
                                                 httpResponse = msg
                                                 if (msg is LastHttpContent) {
                                                     completeResponse(msg, continuation)
@@ -157,15 +124,12 @@ open class ProxyClient(private val connectionPool: NettyConnectionPool) {
                                             }
                                             is HttpContent -> {
                                                 // HTTP响应体（非聚合模式）
-                                                log.debug("Received HttpContent, readable: {}", msg.content().isReadable)
                                                 if (msg.content().isReadable) {
                                                     val bytes = ByteArray(msg.content().readableBytes())
                                                     msg.content().readBytes(bytes)
                                                     contentBuffer.add(bytes)
-                                                    log.debug("Added {} bytes to content buffer", bytes.size)
                                                 }
                                                 if (msg is LastHttpContent) {
-                                                    log.debug("Received LastHttpContent, completing response")
                                                     completeResponse(msg, continuation)
                                                 }
                                             }
@@ -177,56 +141,30 @@ open class ProxyClient(private val connectionPool: NettyConnectionPool) {
                                         }
                                     }
                                 }
-                                
+
                                 private fun completeResponse(@Suppress("UNUSED_PARAMETER") lastContent: LastHttpContent, cont: CancellableContinuation<ProxyResponse>) {
                                     if (!cont.isActive) {
-                                        log.debug("Continuation is not active, skipping response completion")
                                         return
                                     }
-                                    
+
                                     val response = httpResponse
                                     val statusCode = response?.status()?.code() ?: 200
-                                    
-                                    log.debug("Completing response with status: {}, content buffer size: {}", statusCode, contentBuffer.size)
-                                    
+
                                     val headers = mutableMapOf<String, String>()
                                     response?.headers()?.forEach { entry ->
                                         headers[entry.key] = entry.value
                                     }
-                                    
+
                                     val bodyBytes = if (contentBuffer.isNotEmpty()) {
-                                        val totalSize = contentBuffer.sumOf { it.size }
-                                        log.debug("Combining {} content chunks, total size: {} bytes", contentBuffer.size, totalSize)
                                         contentBuffer.reduce { acc, bytes -> acc + bytes }
                                     } else {
-                                        log.debug("No content in buffer, using empty body")
                                         ByteArray(0)
                                     }
-                                    
-                                    val proxyResponse = ProxyResponse(statusCode, headers, bodyBytes)
-                                    
-                                    // 清理处理器
-                                    try {
-                                        channel.pipeline().remove(this)
-                                    } catch (e: Exception) {
-                                        log.debug("Failed to remove proxyHandler: {}", e.message)
-                                    }
-                                    
-                                    // 释放连接
-                                    releaseConnection(channel)
-                                    
-                                    // 记录请求处理时间
-                                    val endTime = System.currentTimeMillis()
-                                    val duration = endTime - startTime
-                                    log.info(
-                                        "Proxy request to {} completed with status {} in {}ms, body size: {} bytes",
-                                        targetUrl,
-                                        proxyResponse.statusCode,
-                                        duration,
-                                        bodyBytes.size
+
+                                    completeProxyResponse(
+                                        channel, statusCode, headers, bodyBytes, targetUrl, startTime,
+                                        cont, this
                                     )
-                                    
-                                    cont.resume(proxyResponse)
                                 }
 
                                 override fun exceptionCaught(ctx: io.netty.channel.ChannelHandlerContext, cause: Throwable) {
@@ -249,7 +187,7 @@ open class ProxyClient(private val connectionPool: NettyConnectionPool) {
                                     }
                                 }
                             }
-                            
+
                             channel.pipeline().addLast("proxyHandler", handler)
                             handlerAdded = true
                         } else {
@@ -335,12 +273,49 @@ open class ProxyClient(private val connectionPool: NettyConnectionPool) {
             proxyRequest.headers().set("User-Agent", "Xc-Proxy/1.0")
         }
 
-        log.debug(
-            "Built proxy request: {} {} with {} headers",
-            proxyRequest.method(), proxyRequest.uri(), proxyRequest.headers().size()
-        )
 
         return proxyRequest
+    }
+
+    /**
+     * 完成代理响应处理（提取的公共方法）
+     */
+    private fun completeProxyResponse(
+        channel: Channel,
+        statusCode: Int,
+        headers: Map<String, String>,
+        bodyBytes: ByteArray,
+        targetUrl: String,
+        startTime: Long,
+        continuation: CancellableContinuation<ProxyResponse>,
+        handler: SimpleChannelInboundHandler<HttpObject>
+    ) {
+        val proxyResponse = ProxyResponse(statusCode, headers, bodyBytes)
+
+        // 清理处理器
+        try {
+            channel.pipeline().remove(handler)
+        } catch (_: Exception) {
+            // 忽略清理异常
+        }
+
+        // 释放连接
+        releaseConnection(channel)
+
+        // 记录请求处理时间
+        val endTime = System.currentTimeMillis()
+        val duration = endTime - startTime
+        log.info(
+            "Proxy request to {} completed with status {} in {}ms, body size: {} bytes",
+            targetUrl,
+            proxyResponse.statusCode,
+            duration,
+            bodyBytes.size
+        )
+
+        if (continuation.isActive) {
+            continuation.resume(proxyResponse)
+        }
     }
 
 
@@ -361,7 +336,7 @@ open class ProxyClient(private val connectionPool: NettyConnectionPool) {
             // 返回连接池
             connectionPool.releaseConnection(channel)
         } catch (e: Exception) {
-            log.warn("Failed to release connection: {}", e.message)
+            log.warn("Connection release failed: {}", e.message)
         }
     }
 

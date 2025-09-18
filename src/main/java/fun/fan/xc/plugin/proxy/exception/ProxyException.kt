@@ -10,7 +10,6 @@ import java.util.concurrent.TimeoutException
  */
 class ProxyException : XcRunException {
     constructor(msg: String?) : super(msg)
-    constructor(msg: String?, cause: Throwable?) : super(msg, cause)
 }
 
 /**

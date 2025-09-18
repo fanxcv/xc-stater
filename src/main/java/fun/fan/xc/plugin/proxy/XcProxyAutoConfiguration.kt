@@ -30,10 +30,6 @@ class XcProxyAutoConfiguration(
 
     private val log: Logger = LoggerFactory.getLogger(XcProxyAutoConfiguration::class.java)
 
-    init {
-        log.info("===> proxy: initializing XcProxyAutoConfiguration")
-    }
-
     /**
      * 创建Netty客户端工厂
      */

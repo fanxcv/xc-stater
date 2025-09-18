@@ -129,7 +129,6 @@ class NettyClientFactory {
                 // 添加HTTP聚合器
                 pipeline.addLast("aggregator", HttpObjectAggregator(maxContentLength))
 
-                log.debug("HTTP pipeline initialized for channel: {}", ch)
             }
         }
     }
@@ -168,7 +167,6 @@ class NettyClientFactory {
                 // 添加HTTP聚合器
                 pipeline.addLast("aggregator", HttpObjectAggregator(maxContentLength))
 
-                log.debug("HTTPS pipeline initialized for channel: {}", ch)
             }
         }
     }

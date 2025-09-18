@@ -66,10 +66,6 @@ open class ProxyLoadBalancer(
             WeightState(targetUrls, totalWeight)
         }
 
-        log.debug(
-            "Executing load balanced request with {} targets (total weight: {})",
-            targetUrls.size, totalWeight
-        )
 
         // 执行请求（支持失败重试）
         return executeWithRetrySuspend(request, weightState, timeoutMs)
@@ -87,25 +83,16 @@ open class ProxyLoadBalancer(
             val selectedUrl = weightState.selectNext()
                 ?: throw RuntimeException("All target URLs failed after retries")
 
-            log.debug("Attempting request to: {} (weight: {})", selectedUrl.url, selectedUrl.weight)
 
             try {
                 val response = proxyClient.executeProxyRequest(request, selectedUrl.url, timeoutMs)
-                
+
                 if (isSuccessResponse(response.statusCode)) {
-                    log.debug(
-                        "Request succeeded to: {} with status: {}",
-                        selectedUrl.url, response.statusCode
-                    )
                     // 成功响应后重置失败标记
                     weightState.resetFailedUrls()
                     return response
                 } else {
                     // 响应状态码表示失败，标记URL并尝试下一个
-                    log.warn(
-                        "Request failed to: {} with status: {}, trying next target",
-                        selectedUrl.url, response.statusCode
-                    )
                     weightState.markUrlAsFailed(selectedUrl.url)
                 }
             } catch (throwable: Exception) {
@@ -156,15 +143,6 @@ open class ProxyLoadBalancer(
     }
 
     /**
-     * 关闭负载均衡器
-     */
-    fun shutdown() {
-        log.info("Shutting down proxy load balancer...")
-        proxyClient.shutdown()
-        log.info("Proxy load balancer shutdown completed")
-    }
-
-    /**
      * 加权URL包装类
      */
     data class WeightedUrl(
@@ -196,9 +174,7 @@ open class ProxyLoadBalancer(
 
             // 如果只有一个可用的URL，直接返回
             if (availableUrls.size == 1) {
-                val selected = availableUrls.first()
-                log.debug("Selected URL (only one available): {}", selected.url)
-                return selected
+                return availableUrls.first()
             }
 
             // 标准平滑加权轮询算法
@@ -225,21 +201,16 @@ open class ProxyLoadBalancer(
                 }
             }
 
-            if (selectedUrl != null && selectedIndex >= 0) {
+            if (selectedUrl != null) {
                 // 被选中的URL减去总权重
                 currentWeights[selectedIndex] -= totalWeight
 
-                log.debug(
-                    "Selected URL: {} with weight: {} (current weights: {})",
-                    selectedUrl.url, selectedUrl.weight, currentWeights.joinToString()
-                )
-                log.info("Load balancer selected target: {} with weight: {}", selectedUrl.url, selectedUrl.weight)
+                log.info("Load balancer selected: {} with weight: {}", selectedUrl.url, selectedUrl.weight)
                 return selectedUrl
             }
 
             // 如果算法有问题（理论上不会发生），退化为随机选择
             val selected = availableUrls[Random.nextInt(availableUrls.size)]
-            log.debug("Selected URL (fallback random): {} with weight: {}", selected.url, selected.weight)
             return selected
         }
 
@@ -248,7 +219,6 @@ open class ProxyLoadBalancer(
          */
         fun markUrlAsFailed(url: String) {
             failedUrls.add(url)
-            log.debug("Marked URL as failed: {}", url)
         }
 
         /**
@@ -256,7 +226,6 @@ open class ProxyLoadBalancer(
          */
         fun resetFailedUrls() {
             failedUrls.clear()
-            log.debug("Reset all failed URLs")
         }
     }
 }
