@@ -4,11 +4,13 @@ import io.netty.buffer.Unpooled
 import io.netty.channel.Channel
 import io.netty.channel.SimpleChannelInboundHandler
 import io.netty.handler.codec.http.*
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeout
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.net.URI
-import java.util.concurrent.*
+import java.util.concurrent.TimeoutException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -32,7 +34,7 @@ import kotlin.coroutines.resumeWithException
  * val response = client.executeProxyRequest(request, "http://example.com").get()
  * ```
  */
-open class ProxyClient(private val connectionPool: NettyConnectionPool) {
+open class ProxyClient(private val connectionPool: HostPortChannelPool) {
 
     private val log: Logger = LoggerFactory.getLogger(ProxyClient::class.java)
 
@@ -57,6 +59,12 @@ open class ProxyClient(private val connectionPool: NettyConnectionPool) {
                 // 获取连接
                 val channel = connectionPool.acquireConnectionSuspend(uri)
 
+                // 动态添加HTTP编解码器到pipeline
+                if (channel.pipeline().get("codec") == null) {
+                    channel.pipeline().addFirst("codec", io.netty.handler.codec.http.HttpClientCodec())
+                    channel.pipeline().addAfter("codec", "aggregator", io.netty.handler.codec.http.HttpObjectAggregator(65536))
+                }
+
                 // 构建代理请求
                 val proxyRequest = buildProxyRequest(request, uri)
 
@@ -76,6 +84,7 @@ open class ProxyClient(private val connectionPool: NettyConnectionPool) {
                         releaseConnection(channel)
                     }
 
+                    // 由于Channel已经有HTTP编解码器，直接发送HTTP请求对象
                     channel.writeAndFlush(proxyRequest).addListener { futureListener ->
                         if (futureListener.isSuccess) {
                             // 设置响应处理器
@@ -91,7 +100,10 @@ open class ProxyClient(private val connectionPool: NettyConnectionPool) {
                                 private var httpResponse: HttpResponse? = null
                                 private val contentBuffer = mutableListOf<ByteArray>()
 
-                                override fun channelRead0(ctx: io.netty.channel.ChannelHandlerContext, msg: HttpObject) {
+                                override fun channelRead0(
+                                    ctx: io.netty.channel.ChannelHandlerContext,
+                                    msg: HttpObject
+                                ) {
                                     try {
                                         when (msg) {
                                             is FullHttpResponse -> {
@@ -115,6 +127,7 @@ open class ProxyClient(private val connectionPool: NettyConnectionPool) {
                                                     continuation, this
                                                 )
                                             }
+
                                             is HttpResponse -> {
                                                 // HTTP响应头（非聚合模式）
                                                 httpResponse = msg
@@ -122,6 +135,7 @@ open class ProxyClient(private val connectionPool: NettyConnectionPool) {
                                                     completeResponse(msg, continuation)
                                                 }
                                             }
+
                                             is HttpContent -> {
                                                 // HTTP响应体（非聚合模式）
                                                 if (msg.content().isReadable) {
@@ -142,7 +156,10 @@ open class ProxyClient(private val connectionPool: NettyConnectionPool) {
                                     }
                                 }
 
-                                private fun completeResponse(@Suppress("UNUSED_PARAMETER") lastContent: LastHttpContent, cont: CancellableContinuation<ProxyResponse>) {
+                                private fun completeResponse(
+                                    @Suppress("UNUSED_PARAMETER") lastContent: LastHttpContent,
+                                    cont: CancellableContinuation<ProxyResponse>
+                                ) {
                                     if (!cont.isActive) {
                                         return
                                     }
@@ -167,7 +184,10 @@ open class ProxyClient(private val connectionPool: NettyConnectionPool) {
                                     )
                                 }
 
-                                override fun exceptionCaught(ctx: io.netty.channel.ChannelHandlerContext, cause: Throwable) {
+                                override fun exceptionCaught(
+                                    ctx: io.netty.channel.ChannelHandlerContext,
+                                    cause: Throwable
+                                ) {
                                     log.error("Exception in proxy client: {}", cause.message)
                                     if (continuation.isActive) {
                                         continuation.resumeWithException(cause)
@@ -317,9 +337,6 @@ open class ProxyClient(private val connectionPool: NettyConnectionPool) {
             continuation.resume(proxyResponse)
         }
     }
-
-
-
 
 
     /**
