@@ -30,31 +30,29 @@ import kotlin.random.Random
  * val response = loadBalancer.executeLoadBalancedRequest(request, urls).get()
  * ```
  */
-open class ProxyLoadBalancer(
-    private val proxyClient: ProxyClient,
-    private val maxRetryCount: Int = 3 // 最大重试次数
-) {
+open class ProxyLoadBalancer() {
+    companion object {
+        val loadBalancerCache = mutableMapOf<String, ProxyLoadBalancer>()
 
-    private val log: Logger = LoggerFactory.getLogger(ProxyLoadBalancer::class.java)
+        fun getOrCreateLoadBalancer(routeKey: String): ProxyLoadBalancer {
+            return loadBalancerCache.getOrPut(routeKey) {
+                ProxyLoadBalancer()
+            }
+        }
+    }
 
     // 权重状态缓存，按目标URL列表的哈希值存储
     private val weightStates = mutableMapOf<String, WeightState>()
 
     /**
-     * 执行负载均衡的代理请求
+     * 同步选择目标URL（用于ProxyOrchestrator）
      *
-     * @param request 原始HTTP请求
      * @param targetUrls 目标URL列表（包含权重）
-     * @param timeoutMs 超时时间(毫秒)
-     * @return 代理响应
+     * @return 选中的目标URL
      */
-    suspend fun executeLoadBalancedRequest(
-        request: io.netty.handler.codec.http.FullHttpRequest,
-        targetUrls: List<WeightedUrl>,
-        timeoutMs: Long = 5000
-    ): ProxyClient.ProxyResponse {
+    fun selectTarget(targetUrls: List<WeightedUrl>): WeightedUrl? {
         if (targetUrls.isEmpty()) {
-            throw ProxyException("No target URLs available")
+            return null
         }
 
         // 计算总权重
@@ -66,80 +64,8 @@ open class ProxyLoadBalancer(
             WeightState(targetUrls, totalWeight)
         }
 
-
-        // 执行请求（支持失败重试）
-        return executeWithRetrySuspend(request, weightState, timeoutMs)
-    }
-
-    /**
-     * 执行带重试的请求（协程版本）
-     */
-    private suspend fun executeWithRetrySuspend(
-        request: io.netty.handler.codec.http.FullHttpRequest,
-        weightState: WeightState,
-        timeoutMs: Long
-    ): ProxyClient.ProxyResponse {
-        repeat(maxRetryCount) { retryCount ->
-            val selectedUrl = weightState.selectNext()
-                ?: throw RuntimeException("All target URLs failed after retries")
-
-
-            try {
-                val response = proxyClient.executeProxyRequest(request, selectedUrl.url, timeoutMs)
-
-                if (isSuccessResponse(response.statusCode)) {
-                    // 成功响应后重置失败标记
-                    weightState.resetFailedUrls()
-                    return response
-                } else {
-                    // 响应状态码表示失败，标记URL并尝试下一个
-                    weightState.markUrlAsFailed(selectedUrl.url)
-                }
-            } catch (throwable: Exception) {
-                val errorMsg = "Request exception to: ${selectedUrl.url} : ${throwable.message}"
-
-                // 根据异常类型记录不同级别的日志
-                when (throwable) {
-                    is ConnectionPoolTimeoutException -> {
-                        // 连接池超时，快速失败避免级联故障
-                        log.error("Connection pool timeout - {}", errorMsg)
-                        throw throwable
-                    }
-
-                    is TimeoutException -> {
-                        log.warn("Timeout {}", errorMsg)
-                    }
-
-                    is ConnectException -> {
-                        log.warn("Connection failed {}", errorMsg)
-                    }
-
-                    is UnknownHostException -> {
-                        log.warn("Unknown host {}", errorMsg)
-                    }
-
-                    else -> {
-                        log.warn("General error {}", errorMsg)
-                    }
-                }
-
-                weightState.markUrlAsFailed(selectedUrl.url)
-            }
-
-            // 指数退避
-            if (retryCount < maxRetryCount - 1) {
-                delay(100L * (retryCount + 1))
-            }
-        }
-
-        throw RuntimeException("All target URLs failed after $maxRetryCount retries")
-    }
-
-    /**
-     * 判断响应是否成功
-     */
-    private fun isSuccessResponse(statusCode: Int): Boolean {
-        return statusCode in 200..299
+        // 直接选择下一个URL（不执行重试逻辑）
+        return weightState.selectNext()
     }
 
     /**

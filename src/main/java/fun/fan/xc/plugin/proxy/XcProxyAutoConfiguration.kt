@@ -1,8 +1,9 @@
 package `fun`.fan.xc.plugin.proxy
 
 import `fun`.fan.xc.plugin.proxy.config.ProxyProperties
-import `fun`.fan.xc.plugin.proxy.handler.ProxyRequestHandler
 import `fun`.fan.xc.plugin.proxy.interceptor.ProxyInterceptor
+import `fun`.fan.xc.plugin.proxy.orchestrator.ProxyOrchestrator
+import `fun`.fan.xc.plugin.proxy.transformer.HttpResponseTransformer
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication
@@ -22,7 +23,8 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 class XcProxyAutoConfiguration(
     private val properties: ProxyProperties,
-    private val handler: ProxyRequestHandler
+    private val orchestrator: ProxyOrchestrator,
+    private val responseTransformer: HttpResponseTransformer
 ) : WebMvcConfigurer {
 
     private val log: Logger = LoggerFactory.getLogger(XcProxyAutoConfiguration::class.java)
@@ -31,7 +33,7 @@ class XcProxyAutoConfiguration(
      * 配置拦截器
      */
     override fun addInterceptors(registry: InterceptorRegistry) {
-        val interceptor = registry.addInterceptor(ProxyInterceptor(handler))
+        val interceptor = registry.addInterceptor(ProxyInterceptor(orchestrator, responseTransformer))
             .order(Ordered.HIGHEST_PRECEDENCE + 10)
 
         properties.route.forEach { interceptor.addPathPatterns(it.source) }

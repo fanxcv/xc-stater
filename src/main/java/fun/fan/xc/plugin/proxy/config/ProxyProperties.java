@@ -48,9 +48,9 @@ public class ProxyProperties {
     public static class NettyPoolProperties {
         /**
          * 最大总连接数
-         * 默认值：200
+         * 默认值：500 (提高并发能力)
          */
-        private int maxTotalConnections = 200;
+        private int maxTotalConnections = 500;
 
         /**
          * 连接空闲超时时间(毫秒)
@@ -60,15 +60,15 @@ public class ProxyProperties {
 
         /**
          * 连接超时时间(毫秒)
-         * 默认值：2000 (2秒)
+         * 默认值：5000 (5秒，增加连接成功率)
          */
-        private long connectionTimeout = 2000L;
+        private long connectionTimeout = 5000L;
 
         /**
          * 最大等待队列长度
-         * 默认值：50
+         * 默认值：200 (大幅提高等待队列大小)
          */
-        private int maxWaitQueueSize = 50;
+        private int maxWaitQueueSize = 200;
 
         /**
          * 健康检查间隔(毫秒)
