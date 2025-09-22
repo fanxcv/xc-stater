@@ -6,6 +6,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
+
 import java.util.List;
 
 /**
@@ -30,18 +33,24 @@ public class ProxyProperties {
      * 总连接数
      * 默认值：10
      */
+    @Min(1)
+    @Max(100)
     private int maxConnections = 10;
 
     /**
      * 等待队列长度
      * 默认值：20
      */
+    @Min(1)
+    @Max(1000)
     private int maxWaitQueueSize = 20;
 
     /**
      * 等待时间，单位ms
      * 默认值：10000ms (10s)
      */
+    @Min(1000)
+    @Max(60000)
     private long maxWaitTimeout = 10000L;
 
     /**

@@ -35,6 +35,9 @@ open class ProxyLoadBalancer() {
     // 权重状态缓存，按目标URL列表的哈希值存储
     private val weightStates = mutableMapOf<String, WeightState>()
 
+    // 总权重缓存，按目标URL列表的哈希值存储
+    private val totalWeightCache = mutableMapOf<String, Int>()
+
     /**
      * 同步选择目标URL（用于ProxyOrchestrator）
      *
@@ -46,11 +49,15 @@ open class ProxyLoadBalancer() {
             return null
         }
 
-        // 计算总权重
-        val totalWeight = targetUrls.sumOf { it.weight }
+        // 检查缓存是否过期
+        val targetsKey = targetUrls.joinToString("|") { "${it.url}:${it.weight}" }
+
+        // 获取或创建总权重（按目标URL列表的哈希值）
+        val totalWeight = totalWeightCache.getOrPut(targetsKey) {
+            targetUrls.sumOf { it.weight }
+        }
 
         // 获取或创建权重状态（按目标URL列表的哈希值）
-        val targetsKey = targetUrls.joinToString("|") { "${it.url}:${it.weight}" }
         val weightState = weightStates.getOrPut(targetsKey) {
             WeightState(targetUrls, totalWeight)
         }
@@ -78,7 +85,7 @@ open class ProxyLoadBalancer() {
         private val currentWeights = weightedUrls.map { it.weight }.toMutableList() // 当前权重列表
 
         /**
-         * 选择下一个URL（使用标准的平滑加权轮询算法）
+         * 选择下一个URL（使用优化的平滑加权轮询算法）
          */
         fun selectNext(): WeightedUrl? {
             // 如果所有URL都已失败，返回null
@@ -92,12 +99,12 @@ open class ProxyLoadBalancer() {
                 return availableUrls.first()
             }
 
-            // 标准平滑加权轮询算法
+            // 优化的平滑加权轮询算法
             var selectedUrl: WeightedUrl? = null
             var selectedIndex = -1
-            var maxCurrentWeight = -1
+            var maxCurrentWeight = Int.MIN_VALUE
 
-            // 遍历所有可用的URL
+            // 遍历所有可用的URL，找到当前权重最大的URL
             for (i in weightedUrls.indices) {
                 val url = weightedUrls[i]
                 // 跳过已失败的URL

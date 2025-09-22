@@ -54,16 +54,21 @@ class HostPortChannelPool(private val properties: ProxyProperties) {
     // 按host:port分组的连接池
     private val hostPortPools = ConcurrentHashMap<String, FixedChannelPool>()
 
+    // 缓存host:port键的计算结果
+    private val hostPortKeyCache = ConcurrentHashMap<URI, String>()
+
     /**
      * 获取路由键 (host:port)
      */
     private fun getHostPortKey(uri: URI): String {
-        val port = if (uri.port == -1) {
-            if (uri.scheme == "https") 443 else 80
-        } else {
-            uri.port
+        return hostPortKeyCache.getOrPut(uri) {
+            val port = if (uri.port == -1) {
+                if (uri.scheme == "https") 443 else 80
+            } else {
+                uri.port
+            }
+            "${uri.host}:$port"
         }
-        return "${uri.host}:$port"
     }
 
     /**
@@ -78,12 +83,9 @@ class HostPortChannelPool(private val properties: ProxyProperties) {
     suspend fun acquireConnectionSuspend(uri: URI): Channel {
         val hostPortKey = getHostPortKey(uri)
 
-        // 获取或创建host:port连接池（使用双重检查锁避免并发创建）
-        val channelPool = hostPortPools[hostPortKey] ?: synchronized(this) {
-            hostPortPools[hostPortKey] ?: createChannelPool(uri).also { newPool ->
-                hostPortPools[hostPortKey] = newPool
-                log.info("Created and registered new channel pool for: {}", hostPortKey)
-            }
+        // 获取host:port连接池（使用延迟初始化避免启动时创建）
+        val channelPool = hostPortPools.getOrPut(hostPortKey) {
+            createChannelPool(uri)
         }
 
         // 获取连接

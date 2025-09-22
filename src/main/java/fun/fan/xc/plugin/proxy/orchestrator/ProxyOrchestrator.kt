@@ -9,6 +9,7 @@ import `fun`.fan.xc.plugin.proxy.transformer.HttpRequestTransformer
 import io.netty.channel.Channel
 import io.netty.handler.codec.http.FullHttpRequest
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -40,7 +41,7 @@ import javax.servlet.http.HttpServletRequest
  * ```
  */
 class ProxyOrchestrator(
-    private val proxyClient: ProxyClient,
+    private val client: ProxyClient,
     private val connectionPool: HostPortChannelPool,
     private val configManager: ProxyConfigurationManager,
     private val requestTransformer: HttpRequestTransformer = HttpRequestTransformer()
@@ -64,7 +65,7 @@ class ProxyOrchestrator(
     ): ProxyClient.ProxyResponse {
         try {
             return withTimeout(timeoutMs) {
-                executeInternalProxyFlow(request, requestPath)
+                executeInternalProxyFlow(request, requestPath, timeoutMs - 100)
             }
         } catch (e: Exception) {
             when (e) {
@@ -88,6 +89,7 @@ class ProxyOrchestrator(
     private suspend fun executeInternalProxyFlow(
         request: HttpServletRequest,
         requestPath: String,
+        timeoutMs: Long
     ): ProxyClient.ProxyResponse {
         // 步骤2：统一入口判断是否代理
         val matchedConfig = configManager.findProxyConfig(requestPath)
@@ -98,32 +100,23 @@ class ProxyOrchestrator(
         //     matchedConfig.getTargetUris()
         // )
 
-        // 步骤3：从负载均衡器获取本次的目标地址
-        val selectedTarget = selectTargetByLoadBalancer(matchedConfig)
+        // 获取重试次数配置
+        val maxRetries = 3 // 默认重试3次
 
-        // 提前转换URI对象，避免重复转换
-        val targetUri = URI(selectedTarget.url)
-
-        // 步骤4：根据目的地址从连接池获取一个连接
-        val connection = connectionPool.acquireConnectionSuspend(targetUri)
-
-        try {
-            // 步骤5：通过原始请求构建新的请求，包括url上的参数和消息体的透传, header的透传等
-            val proxiedRequest = requestTransformer.transform(request, targetUri)
-
-            // 步骤6：执行构建的请求，使用已获取的连接和URI对象
-            return executeProxiedRequest(proxiedRequest, targetUri, connection)
-        } finally {
-            // 步骤7：释放连接回连接池
-            releaseConnectionToPool(connection)
-        }
+        // 执行带重试机制的代理流程
+        return executeWithRetry(request, matchedConfig, timeoutMs, maxRetries)
     }
 
     /**
-     * 步骤3：从负载均衡器获取本次的目的地址
+     * 带重试机制的代理流程执行
      */
-    private fun selectTargetByLoadBalancer(matchedConfig: ProxyConfigurationManager.ProxyConfigMatch):
-            ProxyLoadBalancer.WeightedUrl {
+    private suspend fun executeWithRetry(
+        request: HttpServletRequest,
+        matchedConfig: ProxyConfigurationManager.ProxyConfigMatch,
+        timeoutMs: Long,
+        maxRetries: Int
+    ): ProxyClient.ProxyResponse {
+        var lastException: Exception? = null
 
         // 构建目标URL列表
         val weightedUrls = matchedConfig.targets.map { target ->
@@ -134,20 +127,50 @@ class ProxyOrchestrator(
         val loadBalancerKey = matchedConfig.route.source
         val loadBalancer = ProxyLoadBalancer.getOrCreateLoadBalancer(loadBalancerKey)
 
-        // 选择目标地址（同步方法，避免协程依赖）
-        return loadBalancer.selectTarget(weightedUrls)
-            ?: throw ProxyException("No available target URL for route: $loadBalancerKey")
-    }
+        for (attempt in 0..maxRetries) {
+            try {
+                // 步骤3：从负载均衡器获取本次的目标地址
+                val selectedTarget = loadBalancer.selectTarget(weightedUrls)
+                    ?: throw ProxyException("No available target URL for route: $loadBalancerKey")
 
-    /**
-     * 步骤6：执行构建的请求
-     */
-    private suspend fun executeProxiedRequest(
-        proxiedRequest: FullHttpRequest,
-        targetUri: URI,
-        connection: Channel
-    ): ProxyClient.ProxyResponse {
-        return proxyClient.executeProxyRequest(proxiedRequest, targetUri.toString(), connection)
+                // 提前转换URI对象，避免重复转换
+                val targetUri = URI(selectedTarget.url)
+
+                // 步骤4：根据目的地址从连接池获取一个连接
+                val connection = connectionPool.acquireConnectionSuspend(targetUri)
+
+                try {
+                    // 步骤5：通过原始请求构建新的请求，包括url上的参数和消息体的透传, header的透传等
+                    val proxiedRequest = requestTransformer.transform(request, targetUri)
+
+                    // 步骤6：执行构建的请求，使用已获取的连接和URI对象
+                    val result = client.executeProxyRequest(proxiedRequest, targetUri.toString(), connection, timeoutMs)
+                    if (result.statusCode !in 200 .. 299) {
+                        // 如果状态码不是200，则重试
+                        continue
+                    }
+
+                    return result
+                } finally {
+                    // 步骤7：释放连接回连接池
+                    releaseConnectionToPool(connection)
+                }
+            } catch (e: Exception) {
+                lastException = e
+                log.warn("Proxy attempt ${attempt + 1} failed: ${e.message}")
+
+                // 如果是最后一次尝试，抛出异常
+                if (attempt == maxRetries) {
+                    throw ProxyException("Proxy failed after $maxRetries attempts: ${e.message}", e)
+                }
+
+                // 等待一段时间再重试
+                delay(50 * (attempt + 1).toLong())
+            }
+        }
+
+        // 这行代码理论上不会执行到，但为了编译通过还是加上
+        throw lastException ?: ProxyException("Proxy failed after $maxRetries attempts")
     }
 
     /**

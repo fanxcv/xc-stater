@@ -11,4 +11,5 @@ import `fun`.fan.xc.starter.exception.XcRunException
 class ProxyException : XcRunException {
     constructor(msg: String?) : super(msg)
     constructor(rc: ReturnCode, msg: String?) : super(rc, msg)
+    constructor(msg: String?, cause: Throwable?) : super(msg, cause)
 }

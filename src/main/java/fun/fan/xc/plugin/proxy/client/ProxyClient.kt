@@ -12,6 +12,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import java.io.ByteArrayOutputStream
 import java.util.concurrent.TimeoutException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -36,9 +37,7 @@ import kotlin.coroutines.resumeWithException
  * val response = client.executeProxyRequest(request, "http://example.com")
  * ```
  */
-class ProxyClient(
-    private val properties: ProxyProperties
-) {
+class ProxyClient() {
 
     private val log: Logger = LoggerFactory.getLogger(ProxyClient::class.java)
 
@@ -48,8 +47,7 @@ class ProxyClient(
      */
     data class ResponseState(
         val continuation: CancellableContinuation<ProxyResponse>,
-        val targetUrl: String,
-        val startTime: Long
+        val targetUrl: String
     )
 
     companion object {
@@ -72,12 +70,11 @@ class ProxyClient(
         request: FullHttpRequest,
         targetUrl: String,
         connection: Channel,
-        timeoutMs: Long = properties.timeout
+        timeoutMs: Long
     ): ProxyResponse {
-        val startTime = System.currentTimeMillis()
         return withTimeout(timeoutMs) {
             // 发送请求并等待响应
-            sendRequestAndWaitResponse(connection, request, targetUrl, startTime)
+            sendRequestAndWaitResponse(connection, request, targetUrl)
         }
     }
 
@@ -88,13 +85,12 @@ class ProxyClient(
     private suspend fun sendRequestAndWaitResponse(
         channel: Channel,
         request: FullHttpRequest,
-        targetUrl: String,
-        startTime: Long
+        targetUrl: String
     ): ProxyResponse {
         return suspendCancellableCoroutine { continuation ->
             channel.writeAndFlush(request).addListener { futureListener ->
                 if (futureListener.isSuccess) {
-                    channel.attr(RESPONSE_STATE_KEY).set(ResponseState(continuation, targetUrl, startTime))
+                    channel.attr(RESPONSE_STATE_KEY).set(ResponseState(continuation, targetUrl))
                     // 设置响应处理器（使用内部类实例）
                     try {
                         if (channel.pipeline().get("proxyHandler") == null) {
@@ -126,7 +122,7 @@ class ProxyClient(
     private class ProxyResponseHandler() : SimpleChannelInboundHandler<HttpObject>() {
         private val log: Logger = LoggerFactory.getLogger(ProxyResponseHandler::class.java)
         private var httpResponse: HttpResponse? = null
-        private val contentBuffer = mutableListOf<ByteArray>()
+        private val contentBuffer = ByteArrayOutputStream()
 
         override fun channelRead0(ctx: ChannelHandlerContext, msg: HttpObject) {
             val state = ctx.channel().attr(RESPONSE_STATE_KEY).get()
@@ -154,7 +150,7 @@ class ProxyClient(
                         if (msg.content().isReadable) {
                             val bytes = ByteArray(msg.content().readableBytes())
                             msg.content().readBytes(bytes)
-                            contentBuffer.add(bytes)
+                            contentBuffer.write(bytes)
                         }
                         if (msg is LastHttpContent) {
                             completeResponseFromParts(state, httpResponse, contentBuffer)
@@ -239,7 +235,7 @@ class ProxyClient(
         private fun completeResponseFromParts(
             state: ResponseState,
             httpResponse: HttpResponse?,
-            contentBuffer: MutableList<ByteArray>
+            contentBuffer: ByteArrayOutputStream
         ) {
             if (!state.continuation.isActive) {
                 return
@@ -252,11 +248,8 @@ class ProxyClient(
                 headers[entry.key] = entry.value
             }
 
-            val bodyBytes = if (contentBuffer.isNotEmpty()) {
-                contentBuffer.reduce { acc, bytes -> acc + bytes }
-            } else {
-                ByteArray(0)
-            }
+            val bodyBytes = contentBuffer.toByteArray()
+            contentBuffer.reset()
 
             completeResponse(state, statusCode, headers, bodyBytes)
         }

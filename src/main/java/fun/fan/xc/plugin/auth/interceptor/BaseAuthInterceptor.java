@@ -37,15 +37,18 @@ public class BaseAuthInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull Object handler) {
-        if (!(handler instanceof HandlerMethod)) {
-            return true;
+        AuthIgnore authIgnore = null;
+        boolean isHandler = handler instanceof HandlerMethod;
+
+        if (isHandler) {
+            HandlerMethod hm = (HandlerMethod) handler;
+            // 判断接口是否需要做登录校验
+            authIgnore = hm.getMethodAnnotation(AuthIgnore.class);
+            if (Objects.isNull(authIgnore)) {
+                authIgnore = hm.getBeanType().getAnnotation(AuthIgnore.class);
+            }
         }
-        HandlerMethod hm = (HandlerMethod) handler;
-        // 判断接口是否需要做登录校验
-        AuthIgnore authIgnore = hm.getMethodAnnotation(AuthIgnore.class);
-        if (Objects.isNull(authIgnore)) {
-            authIgnore = hm.getBeanType().getAnnotation(AuthIgnore.class);
-        }
+
         XcConfiguration.Configure configure = xcAuthInterface.getConfigure(configuration);
         String client = xcAuthInterface.client();
         // Token校验
@@ -73,9 +76,13 @@ public class BaseAuthInterceptor implements HandlerInterceptor {
             authUtil.updateToken(token, client);
 
             // 权限校验
-            AuthPermission annotation = hm.getMethodAnnotation(AuthPermission.class);
-            if (Objects.isNull(annotation)) {
-                annotation = hm.getBeanType().getAnnotation(AuthPermission.class);
+            AuthPermission annotation = null;
+            if (isHandler) {
+                HandlerMethod hm = (HandlerMethod) handler;
+                annotation = hm.getMethodAnnotation(AuthPermission.class);
+                if (Objects.isNull(annotation)) {
+                    annotation = hm.getBeanType().getAnnotation(AuthPermission.class);
+                }
             }
             if (Objects.isNull(annotation)) {
                 return true;
