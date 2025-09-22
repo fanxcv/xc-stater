@@ -1,5 +1,6 @@
 package `fun`.fan.xc.plugin.proxy.handler
 
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.random.Random
 
 /**
@@ -21,13 +22,13 @@ import kotlin.random.Random
  * val response = loadBalancer.executeLoadBalancedRequest(request, urls).get()
  * ```
  */
-open class ProxyLoadBalancer() {
+open class ProxyLoadBalancer(private val key: String) {
     companion object {
         val loadBalancerCache = mutableMapOf<String, ProxyLoadBalancer>()
 
         fun getOrCreateLoadBalancer(routeKey: String): ProxyLoadBalancer {
             return loadBalancerCache.getOrPut(routeKey) {
-                ProxyLoadBalancer()
+                ProxyLoadBalancer(routeKey)
             }
         }
     }
@@ -37,6 +38,30 @@ open class ProxyLoadBalancer() {
 
     // 总权重缓存，按目标URL列表的哈希值存储
     private val totalWeightCache = mutableMapOf<String, Int>()
+
+    /**
+     * 标记指定路由下的URL为故障状态
+     */
+    fun markFailed(failedUrl: String) {
+        val weightState = weightStates[key]
+        weightState?.markFailed(failedUrl)
+    }
+
+    /**
+     * 清除指定路由下所有URL的故障状态
+     */
+    fun clearAllFailures() {
+        val weightState = weightStates[key]
+        weightState?.clearAllFailures()
+    }
+
+    /**
+     * 检查指定路由下是否所有URL都故障了
+     */
+    fun areAllUrlsFailed(): Boolean {
+        val weightState = weightStates[key]
+        return weightState?.areAllUrlsFailed() ?: false
+    }
 
     /**
      * 同步选择目标URL（用于ProxyOrchestrator）
@@ -49,16 +74,13 @@ open class ProxyLoadBalancer() {
             return null
         }
 
-        // 检查缓存是否过期
-        val targetsKey = targetUrls.joinToString("|") { "${it.url}:${it.weight}" }
-
         // 获取或创建总权重（按目标URL列表的哈希值）
-        val totalWeight = totalWeightCache.getOrPut(targetsKey) {
+        val totalWeight = totalWeightCache.getOrPut(key) {
             targetUrls.sumOf { it.weight }
         }
 
         // 获取或创建权重状态（按目标URL列表的哈希值）
-        val weightState = weightStates.getOrPut(targetsKey) {
+        val weightState = weightStates.getOrPut(key) {
             WeightState(targetUrls, totalWeight)
         }
 
@@ -81,15 +103,62 @@ open class ProxyLoadBalancer() {
         private val weightedUrls: List<WeightedUrl>,
         private val totalWeight: Int
     ) {
-        private val failedUrls = mutableSetOf<String>()
+        // private val lock = ReentrantReadWriteLock()
+        private val failedUrls = ConcurrentHashMap<String, Long>() // 故障URL及其失败时间戳
         private val currentWeights = weightedUrls.map { it.weight }.toMutableList() // 当前权重列表
+        private val failureTimeoutMs = 30000L // 故障超时时间，30秒后自动恢复
+
+        /**
+         * 标记URL为故障状态
+         */
+        fun markFailed(url: String) {
+            failedUrls[url] = System.currentTimeMillis()
+        }
+
+        /**
+         * 清除所有故障状态
+         */
+        fun clearAllFailures() {
+            failedUrls.clear()
+        }
+
+        /**
+         * 检查并清理过期的故障标记
+         */
+        private fun cleanupExpiredFailures() {
+            val now = System.currentTimeMillis()
+            failedUrls.entries.removeIf { entry ->
+                now - entry.value > failureTimeoutMs
+            }
+        }
+
+        /**
+         * 获取当前可用的URL列表
+         */
+        private fun getAvailableUrls(): List<WeightedUrl> {
+            cleanupExpiredFailures()
+            return weightedUrls.filter { it.url !in failedUrls.keys }
+        }
+
+        /**
+         * 检查是否所有URL都故障了
+         */
+        fun areAllUrlsFailed(): Boolean {
+            cleanupExpiredFailures()
+            return failedUrls.size >= weightedUrls.size
+        }
 
         /**
          * 选择下一个URL（使用优化的平滑加权轮询算法）
          */
         fun selectNext(): WeightedUrl? {
+            // 清理过期的故障标记
+            cleanupExpiredFailures()
+
+            // 获取可用的URL列表
+            val availableUrls = getAvailableUrls()
+
             // 如果所有URL都已失败，返回null
-            val availableUrls = weightedUrls.filter { it.url !in failedUrls }
             if (availableUrls.isEmpty()) {
                 return null
             }
@@ -108,7 +177,7 @@ open class ProxyLoadBalancer() {
             for (i in weightedUrls.indices) {
                 val url = weightedUrls[i]
                 // 跳过已失败的URL
-                if (url.url in failedUrls) {
+                if (url.url in failedUrls.keys) {
                     continue
                 }
 

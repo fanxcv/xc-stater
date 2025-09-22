@@ -7,7 +7,6 @@ import `fun`.fan.xc.plugin.proxy.exception.ProxyException
 import `fun`.fan.xc.plugin.proxy.handler.ProxyLoadBalancer
 import `fun`.fan.xc.plugin.proxy.transformer.HttpRequestTransformer
 import io.netty.channel.Channel
-import io.netty.handler.codec.http.FullHttpRequest
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
@@ -128,11 +127,11 @@ class ProxyOrchestrator(
         val loadBalancer = ProxyLoadBalancer.getOrCreateLoadBalancer(loadBalancerKey)
 
         for (attempt in 0..maxRetries) {
-            try {
-                // 步骤3：从负载均衡器获取本次的目标地址
-                val selectedTarget = loadBalancer.selectTarget(weightedUrls)
-                    ?: throw ProxyException("No available target URL for route: $loadBalancerKey")
+            // 步骤3：从负载均衡器获取本次的目标地址
+            val selectedTarget = loadBalancer.selectTarget(weightedUrls)
+                ?: throw ProxyException("No available target URL for route: $loadBalancerKey")
 
+            try {
                 // 提前转换URI对象，避免重复转换
                 val targetUri = URI(selectedTarget.url)
 
@@ -145,8 +144,11 @@ class ProxyOrchestrator(
 
                     // 步骤6：执行构建的请求，使用已获取的连接和URI对象
                     val result = client.executeProxyRequest(proxiedRequest, targetUri.toString(), connection, timeoutMs)
-                    if (result.statusCode !in 200 .. 299) {
-                        // 如果状态码不是200，则重试
+
+                    // 检查响应状态码
+                    if (result.statusCode !in 200..299) {
+                        markFailed(loadBalancer, selectedTarget.url)
+                        // 继续重试
                         continue
                     }
 
@@ -158,6 +160,8 @@ class ProxyOrchestrator(
             } catch (e: Exception) {
                 lastException = e
                 log.warn("Proxy attempt ${attempt + 1} failed: ${e.message}")
+
+                markFailed(loadBalancer, selectedTarget.url)
 
                 // 如果是最后一次尝试，抛出异常
                 if (attempt == maxRetries) {
@@ -171,6 +175,17 @@ class ProxyOrchestrator(
 
         // 这行代码理论上不会执行到，但为了编译通过还是加上
         throw lastException ?: ProxyException("Proxy failed after $maxRetries attempts")
+    }
+
+    private fun markFailed(loadBalancer: ProxyLoadBalancer, uri: String) {
+
+        // 标记该节点为故障节点
+        loadBalancer.markFailed(uri)
+        // 检查是否所有节点都故障了，如果是则清除故障状态
+        if (loadBalancer.areAllUrlsFailed()) {
+            loadBalancer.clearAllFailures()
+        }
+
     }
 
     /**
