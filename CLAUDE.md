@@ -1,18 +1,8 @@
 # xc-starter 项目
 
-## 项目摘要
+## 项目愿景
 
-xc-starter 是一个基于 Spring Boot 的企业级开发工具包，提供了丰富的插件化功能模块。该项目旨在简化企业应用开发，提供了一套完整的解决方案，包括认证授权、微信开发、网关路由、数据处理等核心功能。
-
-### 核心功能
-1. **认证与授权**：提供了基于 Token 的认证机制和权限控制
-2. **微信开发工具包**：封装了微信公众号和小程序的 API 接口
-3. **网关路由**：实现了可扩展的网关链式处理机制
-4. **Redis 扩展**：提供了 Redis 相关的工具类和配置
-5. **MyBatis Plus 扩展**：增强了 MyBatis Plus 的功能
-6. **文件上传**：支持多种文件上传方式
-7. **短信服务**：集成了短信发送功能
-8. **协程支持**：提供了 Kotlin 协程的支持
+xc-starter 是一个基于 Spring Boot 的企业级开发工具包，旨在简化企业应用开发，提供了一套完整的解决方案。通过插件化的设计，开发者可以按需引入所需功能模块，快速构建稳定、高效的应用系统。
 
 ## 架构总览
 
@@ -39,6 +29,7 @@ graph TD
         C11[drone]
         C12[scanner]
         C13[meituan]
+        C14[proxy]
     end
 
     subgraph B1 [starter]
@@ -77,6 +68,16 @@ graph TD
     subgraph C3 [gateway]
         C3A[chain]
     end
+
+    subgraph C14 [proxy]
+        C14A[client]
+        C14B[config]
+        C14C[exception]
+        C14D[handler]
+        C14E[interceptor]
+        C14F[orchestrator]
+        C14G[transformer]
+    end
 ```
 
 ## 模块索引
@@ -113,6 +114,7 @@ graph TD
 | `fun.fan.xc.plugin.drone` | 无人机相关模块 |
 | `fun.fan.xc.plugin.scanner` | 扫描器模块 |
 | `fun.fan.xc.plugin.meituan` | 美团相关功能模块 |
+| `fun.fan.xc.plugin.proxy` | 代理服务模块 |
 
 ## 运行与开发
 
@@ -176,5 +178,6 @@ graph TD
 
 ## 变更记录 (Changelog)
 
-- **2025-09-09**: 完成对 xc-starter 项目的初步分析，梳理了项目结构、核心功能和架构设计。
+- **2025-09-22**: 更新项目说明文件，完善架构图和模块索引信息，添加代理服务模块。
 - **2025-09-10**: 更新项目说明文件，修正架构图和模块索引信息。
+- **2025-09-09**: 完成对 xc-starter 项目的初步分析，梳理了项目结构、核心功能和架构设计。

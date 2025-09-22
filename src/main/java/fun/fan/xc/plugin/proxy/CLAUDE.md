@@ -1,0 +1,102 @@
+# 代理服务模块 (proxy)
+
+## 模块职责
+
+代理服务模块提供了HTTP代理功能，基于Netty实现，支持负载均衡、连接池管理、请求转发等功能。该模块能够将接收到的HTTP请求转发到配置的目标服务器，并将响应返回给客户端。
+
+## 核心组件
+
+### 1. 启动注解
+- `@EnableXcProxy`: 启用代理功能的注解
+
+### 2. 配置类
+- `ProxyProperties`: 代理配置属性类，定义了代理相关的配置参数
+- `ProxyRoute`: 路由配置类，定义代理路由配置
+- `ProxyDestination`: 目标配置类，定义代理目标配置
+- `ProxyConfigurationManager`: 配置管理器，负责代理配置的管理和查询
+
+### 3. 核心处理类
+- `ProxyInterceptor`: 代理拦截器，专注于拦截Spring MVC请求，判断是否需要代理
+- `ProxyOrchestrator`: 代理协调器，负责协调整个代理请求的流程
+- `ProxyLoadBalancer`: 负载均衡器，支持权重轮询算法和失败重试机制
+
+### 4. 客户端组件
+- `ProxyClient`: 代理客户端门面类，提供简单的代理请求接口
+- `HostPortChannelPool`: Host:Port连接池，专注于Netty连接的池化管理和生命周期控制
+
+### 5. 转换器组件
+- `HttpRequestTransformer`: HTTP请求转换器，负责将Servlet请求转换为Netty HTTP请求
+- `HttpResponseTransformer`: HTTP响应转换器，负责将Netty HTTP响应转换为Servlet响应
+
+### 6. 异常处理
+- `ProxyException`: 代理异常类，用于处理代理过程中的异常情况
+
+## 核心功能
+
+### 1. HTTP代理
+- 支持将HTTP请求转发到目标服务器
+- 完整的请求参数透传、消息体透传、Header透传
+- 支持multipart请求的处理和重构
+
+### 2. 负载均衡
+- 支持基于权重的轮询负载均衡算法
+- 支持失败重试机制，提高系统可用性
+- 支持平滑加权轮询算法，确保权重分配准确性
+
+### 3. 连接池管理
+- 基于Netty的连接池管理，提高连接复用率
+- 支持按host:port分组管理连接池
+- 连接的异步获取和释放
+
+### 4. 配置化路由
+- 支持通过配置文件定义路由规则
+- 支持多个目标地址的配置，支持权重分配
+
+### 5. 请求/响应转换
+- 支持请求和响应的转换与透传
+- 智能处理各种HTTP Headers
+- 支持各种响应类型的处理
+
+## 使用方式
+
+1. 在Spring Boot应用的主类上添加`@EnableXcProxy`注解
+2. 在`application.yml`或`application.properties`中配置路由规则
+3. 通过依赖注入使用相关组件
+
+### 配置示例
+
+```yaml
+xc:
+  proxy:
+    timeout: 30000
+    max-connections: 10
+    max-wait-queue-size: 20
+    max-wait-timeout: 10000
+    route:
+      - source: /api/proxy1/**
+        target:
+          - uri: http://server1.example.com
+            weight: 5
+          - uri: http://server2.example.com
+            weight: 3
+      - source: /api/proxy2/**
+        target:
+          - uri: http://server3.example.com
+            weight: 1
+```
+
+## 配置参数
+
+| 参数 | 说明 | 默认值 | 取值范围 |
+| :--- | :--- | :--- | :--- |
+| xc.proxy.timeout | 超时时间(毫秒) | 30000 | - |
+| xc.proxy.max-connections | 总连接数 | 10 | 1-100 |
+| xc.proxy.max-wait-queue-size | 等待队列长度 | 20 | 1-1000 |
+| xc.proxy.max-wait-timeout | 等待时间(毫秒) | 10000 | 1000-60000 |
+| xc.proxy.route | 路由配置列表 | null | - |
+
+## 依赖模块
+
+- Netty
+- Kotlin Coroutines
+- Spring Boot Web
