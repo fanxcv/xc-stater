@@ -57,8 +57,6 @@ class HttpRequestTransformer {
      * @throws ProxyException 转换失败异常
      */
     fun transform(request: HttpServletRequest, targetUri: URI): FullHttpRequest {
-        log.debug("Transforming Servlet request to Netty request for target: {}", targetUri)
-
         // 构建目标请求路径
         val targetPath = buildTargetPath(request, targetUri)
 
@@ -77,10 +75,10 @@ class HttpRequestTransformer {
         // 设置必要的Headers
         setRequiredHeaders(nettyRequest, requestBody, targetUri)
 
-        log.debug(
-            "Request transformation completed. Method: {}, Path: {}, BodySize: {}",
-            httpMethod, targetPath, requestBody.size
-        )
+        // log.debug(
+        //     "Request transformation completed. Method: {}, Path: {}, BodySize: {}",
+        //     httpMethod, targetPath, requestBody.size
+        // )
 
         return nettyRequest
     }
@@ -178,7 +176,6 @@ class HttpRequestTransformer {
 
             // 跳过需要过滤的Headers
             if (shouldFilterHeader(headerName.lowercase())) {
-                log.debug("Filtering header: {}", headerName)
                 continue
             }
 

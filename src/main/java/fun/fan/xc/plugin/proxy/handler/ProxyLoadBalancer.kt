@@ -1,14 +1,7 @@
 package `fun`.fan.xc.plugin.proxy.handler
 
-import `fun`.fan.xc.plugin.proxy.client.ProxyClient
-import `fun`.fan.xc.plugin.proxy.exception.ConnectionPoolTimeoutException
-import `fun`.fan.xc.plugin.proxy.exception.ProxyException
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.net.ConnectException
-import java.net.UnknownHostException
-import kotlinx.coroutines.*
-import java.util.concurrent.TimeoutException
 import kotlin.random.Random
 
 /**
@@ -130,28 +123,12 @@ open class ProxyLoadBalancer() {
             if (selectedUrl != null) {
                 // 被选中的URL减去总权重
                 currentWeights[selectedIndex] -= totalWeight
-
-                log.info("Load balancer selected: {} with weight: {}", selectedUrl.url, selectedUrl.weight)
                 return selectedUrl
             }
 
             // 如果算法有问题（理论上不会发生），退化为随机选择
             val selected = availableUrls[Random.nextInt(availableUrls.size)]
             return selected
-        }
-
-        /**
-         * 标记URL为失败（在重试时调用）
-         */
-        fun markUrlAsFailed(url: String) {
-            failedUrls.add(url)
-        }
-
-        /**
-         * 重置失败标记（在成功时调用）
-         */
-        fun resetFailedUrls() {
-            failedUrls.clear()
         }
     }
 }

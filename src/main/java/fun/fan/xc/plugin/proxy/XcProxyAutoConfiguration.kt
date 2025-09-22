@@ -33,7 +33,7 @@ class XcProxyAutoConfiguration(
      * 配置拦截器
      */
     override fun addInterceptors(registry: InterceptorRegistry) {
-        val interceptor = registry.addInterceptor(ProxyInterceptor(orchestrator, responseTransformer))
+        val interceptor = registry.addInterceptor(ProxyInterceptor(properties, orchestrator, responseTransformer))
             .order(Ordered.HIGHEST_PRECEDENCE + 10)
 
         properties.route.forEach { interceptor.addPathPatterns(it.source) }

@@ -3,6 +3,7 @@ package `fun`.fan.xc.plugin.proxy.config
 import `fun`.fan.xc.plugin.proxy.exception.ProxyException
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import java.net.URI
 
 /**
  * 代理配置管理器
@@ -44,20 +45,15 @@ class ProxyConfigurationManager(
      * 初始化路由映射配置
      */
     private fun initializeRouteMap() {
-        try {
-            properties.route?.forEach { route ->
-                validateRouteConfiguration(route)
-                if (route.target != null && route.target.isNotEmpty()) {
-                    routeMap[route.source] = ProxyConfigMatch(route, route.target)
-                    log.debug("Added route mapping: {} -> {}", route.source, route.target.map { it.uri })
-                }
+        properties.route?.forEach { route ->
+            validateRouteConfiguration(route)
+            if (route.target != null && route.target.isNotEmpty()) {
+                routeMap[route.source] = ProxyConfigMatch(route, route.target)
+                log.debug("Added route mapping: {} -> {}", route.source, route.target.map { it.uri })
             }
-            log.info("Initialized {} proxy routes", routeMap.size)
-            logRouteSummary()
-        } catch (e: Exception) {
-            log.error("Failed to initialize proxy route configuration", e)
-            throw ProxyException("Failed to initialize proxy configuration: ${e.message}")
         }
+        log.info("Initialized {} proxy routes", routeMap.size)
+        logRouteSummary()
     }
 
     /**
@@ -80,8 +76,8 @@ class ProxyConfigurationManager(
 
             // 验证URI格式
             try {
-                java.net.URI(destination.uri)
-            } catch (e: Exception) {
+                URI(destination.uri)
+            } catch (_: Exception) {
                 throw ProxyException("Invalid target URI format '${destination.uri}' for route: ${route.source}")
             }
 
@@ -108,76 +104,6 @@ class ProxyConfigurationManager(
     }
 
     /**
-     * 获取所有配置的路由信息
-     */
-    fun getAllConfiguredRoutes(): Map<String, ProxyConfigMatch> {
-        return routeMap.toMap()
-    }
-
-    /**
-     * 获取配置的路由数量
-     */
-    fun getRouteCount(): Int {
-        return routeMap.size
-    }
-
-    /**
-     * 检查指定路径是否配置了代理
-     */
-    fun isProxyConfigured(requestPath: String): Boolean {
-        return routeMap.containsKey(requestPath)
-    }
-
-    /**
-     * 获取指定路由的目标服务器列表
-     */
-    fun getTargetsForRoute(requestPath: String): List<ProxyDestination>? {
-        val config = routeMap[requestPath]
-        return config?.targets
-    }
-
-    /**
-     * 重新加载配置（支持热重载）
-     */
-    fun reloadConfiguration() {
-        log.info("Reloading proxy configuration...")
-        routeMap.clear()
-        initializeRouteMap()
-        log.info("Proxy configuration reloaded successfully")
-    }
-
-    /**
-     * 添加新的路由配置
-     */
-    fun addRoute(route: ProxyRoute): Boolean {
-        try {
-            validateRouteConfiguration(route)
-            if (route.target != null && route.target.isNotEmpty()) {
-                routeMap[route.source] = ProxyConfigMatch(route, route.target)
-                log.info("Added route mapping: {} -> {}", route.source, route.target.map { it.uri })
-                return true
-            }
-        } catch (e: Exception) {
-            log.error("Failed to add route: {}", route.source, e)
-        }
-        return false
-    }
-
-    /**
-     * 移除路由配置
-     */
-    fun removeRoute(sourcePath: String): Boolean {
-        return if (routeMap.containsKey(sourcePath)) {
-            routeMap.remove(sourcePath)
-            log.info("Removed route mapping: {}", sourcePath)
-            true
-        } else {
-            log.debug("Route mapping not found for removal: {}", sourcePath)
-            false
-        }
-    }
-
-    /**
      * 记录路由配置摘要
      */
     private fun logRouteSummary() {
@@ -195,54 +121,6 @@ class ProxyConfigurationManager(
             summary.append("=====================================")
             log.info(summary.toString())
         }
-    }
-
-    /**
-     * 获取配置的副本（防止外部修改）
-     */
-    fun getConfigurationSnapshot(): Map<String, ProxyConfigMatch> {
-        return routeMap.toMap()
-    }
-
-    /**
-     * 检查配置的健康状态
-     */
-    fun validateConfigurationHealth(): ConfigurationHealth {
-        val issues = mutableListOf<String>()
-        var healthyRouteCount = 0
-
-        routeMap.forEach { (source, config) ->
-            try {
-                if (config.targets.isEmpty()) {
-                    issues.add("Route '$source' has no target destinations")
-                } else {
-                    val validTargets = config.targets.count { target ->
-                        try {
-                            java.net.URI(target.uri)
-                            target.weight > 0
-                        } catch (e: Exception) {
-                            false
-                        }
-                    }
-
-                    if (validTargets == 0) {
-                        issues.add("Route '$source' has no valid target destinations")
-                    } else if (validTargets < config.targets.size) {
-                        issues.add("Route '$source' has ${config.targets.size - validTargets} invalid target destinations")
-                    } else {
-                        healthyRouteCount++
-                    }
-                }
-            } catch (e: Exception) {
-                issues.add("Route '$source' validation failed: ${e.message}")
-            }
-        }
-
-        return ConfigurationHealth(
-            totalRoutes = routeMap.size,
-            healthyRoutes = healthyRouteCount,
-            issues = issues
-        )
     }
 
     /**
@@ -271,34 +149,6 @@ class ProxyConfigurationManager(
          */
         fun hasAvailableTargets(): Boolean {
             return targets.isNotEmpty()
-        }
-    }
-
-    /**
-     * 配置健康状态
-     */
-    data class ConfigurationHealth(
-        val totalRoutes: Int,
-        val healthyRoutes: Int,
-        val issues: List<String>
-    ) {
-        /**
-         * 检查配置是否健康
-         */
-        fun isHealthy(): Boolean {
-            return issues.isEmpty() && healthyRoutes == totalRoutes
-        }
-
-        /**
-         * 获取健康状态描述
-         */
-        fun getStatusDescription(): String {
-            return when {
-                isHealthy() -> "All routes are healthy"
-                healthyRoutes == 0 -> "No healthy routes available"
-                healthyRoutes < totalRoutes -> "$healthyRoutes of $totalRoutes routes are healthy"
-                else -> "Configuration has issues"
-            }
         }
     }
 }

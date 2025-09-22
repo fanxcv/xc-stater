@@ -1,20 +1,34 @@
 package `fun`.fan.xc.plugin.proxy.client
 
 import `fun`.fan.xc.plugin.proxy.config.ProxyProperties
+import io.netty.channel.Channel
+import io.netty.channel.ChannelHandler
+import io.netty.channel.ChannelHandlerContext
+import io.netty.channel.SimpleChannelInboundHandler
+import io.netty.handler.codec.http.*
+import io.netty.util.AttributeKey
+import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeout
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import java.util.concurrent.TimeoutException
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 /**
  * 代理客户端门面类
- * 提供简单的代理请求接口，内部委托给专门的执行器处理
+ * 提供简单的代理请求接口，内部直接处理HTTP请求执行
  *
  * @author fan
  *
  * ## 职责范围
  * - 提供统一的代理请求接口
- * - 委托HTTP执行给ProxyHttpExecutor
- * - 简化客户端使用复杂性
- * - 提供兼容性支持（保持原有API接口）
+ * - HTTP请求的发送和响应接收
+ * - HTTP编解码器的动态管理
+ * - 响应数据的完整收集和处理
+ * - 超时控制和相关异常处理
+ * - 连接生命周期的委托管理
  *
  * ## 使用示例
  * ```kotlin
@@ -23,15 +37,28 @@ import org.slf4j.LoggerFactory
  * ```
  */
 class ProxyClient(
-    private val connectionPool: HostPortChannelPool,
     private val properties: ProxyProperties
 ) {
 
     private val log: Logger = LoggerFactory.getLogger(ProxyClient::class.java)
-    private val httpExecutor: ProxyHttpExecutor = ProxyHttpExecutor(connectionPool, properties)
 
     /**
-     * 执行代理请求（委托给专门的HTTP执行器）
+     * 响应状态数据类
+     * 用于存储单个HTTP请求的响应处理状态
+     */
+    data class ResponseState(
+        val continuation: CancellableContinuation<ProxyResponse>,
+        val targetUrl: String,
+        val startTime: Long
+    )
+
+    companion object {
+        private val RESPONSE_STATE_KEY = AttributeKey.valueOf<ResponseState>("responseState")
+        private val handler = ProxyResponseHandler()
+    }
+
+    /**
+     * 执行代理请求
      *
      * @param request HTTP请求对象
      * @param targetUrl 目标URL
@@ -42,24 +69,207 @@ class ProxyClient(
      * @throws Exception 执行失败异常
      */
     suspend fun executeProxyRequest(
-        request: io.netty.handler.codec.http.FullHttpRequest,
+        request: FullHttpRequest,
         targetUrl: String,
-        connection: io.netty.channel.Channel? = null,
-        timeoutMs: Long = 5000
+        connection: Channel,
+        timeoutMs: Long = properties.timeout
     ): ProxyResponse {
-        log.debug("Delegating proxy request to HTTP executor: {}, timeout: {}ms", targetUrl, timeoutMs)
-        val executorResponse = httpExecutor.executeHttpRequest(request, targetUrl, connection, timeoutMs)
-        return ProxyResponse(executorResponse.statusCode, executorResponse.headers, executorResponse.body, targetUrl)
+        val startTime = System.currentTimeMillis()
+        return withTimeout(timeoutMs) {
+            // 发送请求并等待响应
+            sendRequestAndWaitResponse(connection, request, targetUrl, startTime)
+        }
+    }
+
+
+    /**
+     * 发送请求并等待响应
+     */
+    private suspend fun sendRequestAndWaitResponse(
+        channel: Channel,
+        request: FullHttpRequest,
+        targetUrl: String,
+        startTime: Long
+    ): ProxyResponse {
+        return suspendCancellableCoroutine { continuation ->
+            channel.writeAndFlush(request).addListener { futureListener ->
+                if (futureListener.isSuccess) {
+                    channel.attr(RESPONSE_STATE_KEY).set(ResponseState(continuation, targetUrl, startTime))
+                    // 设置响应处理器（使用内部类实例）
+                    try {
+                        if (channel.pipeline().get("proxyHandler") == null) {
+                            channel.pipeline().addLast("proxyHandler", handler)
+                        }
+                    } catch (e: Exception) {
+                        log.error("Failed to add response handler: {}", e.message)
+                        if (continuation.isActive) {
+                            continuation.resumeWithException(e)
+                        }
+                    }
+                } else {
+                    log.error("Failed to send HTTP request: {}", futureListener.cause()?.message)
+                    if (continuation.isActive) {
+                        continuation.resumeWithException(
+                            futureListener.cause() ?: RuntimeException("Failed to send HTTP request")
+                        )
+                    }
+                }
+            }
+        }
     }
 
     /**
-     * 代理响应数据类（兼容性，委托给ProxyHttpExecutor.ProxyResponse）
+     * 代理响应处理器
+     * 负责处理HTTP响应的完整生命周期
+     */
+    @ChannelHandler.Sharable
+    private class ProxyResponseHandler() : SimpleChannelInboundHandler<HttpObject>() {
+        private val log: Logger = LoggerFactory.getLogger(ProxyResponseHandler::class.java)
+        private var httpResponse: HttpResponse? = null
+        private val contentBuffer = mutableListOf<ByteArray>()
+
+        override fun channelRead0(ctx: ChannelHandlerContext, msg: HttpObject) {
+            val state = ctx.channel().attr(RESPONSE_STATE_KEY).get()
+
+            try {
+                when (msg) {
+                    is FullHttpResponse -> {
+                        // 完整的HTTP响应（包含头和体）
+                        val statusCode = msg.status().code()
+                        val headers = extractHeaders(msg)
+                        val bodyBytes = extractBody(msg)
+                        completeResponse(state, statusCode, headers, bodyBytes)
+                    }
+
+                    is HttpResponse -> {
+                        // HTTP响应头（非聚合模式）
+                        httpResponse = msg
+                        if (msg is LastHttpContent) {
+                            completeResponseFromParts(state, httpResponse, contentBuffer)
+                        }
+                    }
+
+                    is HttpContent -> {
+                        // HTTP响应体（非聚合模式）
+                        if (msg.content().isReadable) {
+                            val bytes = ByteArray(msg.content().readableBytes())
+                            msg.content().readBytes(bytes)
+                            contentBuffer.add(bytes)
+                        }
+                        if (msg is LastHttpContent) {
+                            completeResponseFromParts(state, httpResponse, contentBuffer)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                log.error("Error handling HTTP response: {}", e.message, e)
+
+                if (state?.continuation?.isActive ?: false) {
+                    state.continuation.resumeWithException(e)
+                }
+            }
+        }
+
+        override fun exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {
+            log.error("Exception in HTTP executor: {}", cause.message)
+            val state = ctx.channel().attr(RESPONSE_STATE_KEY).get()
+
+            if (state?.continuation?.isActive ?: false) {
+                state.continuation.resumeWithException(cause)
+            }
+            ctx.close()
+        }
+
+        override fun userEventTriggered(ctx: ChannelHandlerContext, evt: Any) {
+            if (evt is io.netty.handler.timeout.IdleStateEvent) {
+                log.warn("Channel idle timeout: {}", evt.state())
+                val state = ctx.channel().attr(RESPONSE_STATE_KEY).get()
+
+                if (state?.continuation?.isActive ?: false) {
+                    state.continuation.resumeWithException(TimeoutException("Channel idle timeout: ${evt.state()}"))
+                }
+                ctx.close()
+            } else {
+                super.userEventTriggered(ctx, evt)
+            }
+        }
+
+        /**
+         * 提取Headers
+         */
+        private fun extractHeaders(response: FullHttpResponse): Map<String, String> {
+            val headers = mutableMapOf<String, String>()
+            response.headers().forEach { entry ->
+                headers[entry.key] = entry.value
+            }
+            return headers
+        }
+
+        /**
+         * 提取Body
+         */
+        private fun extractBody(response: FullHttpResponse): ByteArray {
+            return if (response.content().isReadable) {
+                val bytes = ByteArray(response.content().readableBytes())
+                response.content().readBytes(bytes)
+                bytes
+            } else {
+                ByteArray(0)
+            }
+        }
+
+        /**
+         * 完成完整响应的处理
+         */
+        private fun completeResponse(
+            state: ResponseState,
+            statusCode: Int,
+            headers: Map<String, String>,
+            bodyBytes: ByteArray
+        ) {
+            val proxyResponse = ProxyResponse(statusCode, headers, bodyBytes, state.targetUrl)
+            if (state.continuation.isActive) {
+                state.continuation.resume(proxyResponse)
+            }
+        }
+
+        /**
+         * 完成分片响应的处理
+         */
+        private fun completeResponseFromParts(
+            state: ResponseState,
+            httpResponse: HttpResponse?,
+            contentBuffer: MutableList<ByteArray>
+        ) {
+            if (!state.continuation.isActive) {
+                return
+            }
+
+            val statusCode = httpResponse?.status()?.code() ?: 200
+
+            val headers = mutableMapOf<String, String>()
+            httpResponse?.headers()?.entries()?.forEach { entry ->
+                headers[entry.key] = entry.value
+            }
+
+            val bodyBytes = if (contentBuffer.isNotEmpty()) {
+                contentBuffer.reduce { acc, bytes -> acc + bytes }
+            } else {
+                ByteArray(0)
+            }
+
+            completeResponse(state, statusCode, headers, bodyBytes)
+        }
+    }
+
+    /**
+     * HTTP响应数据类
      */
     data class ProxyResponse(
         val statusCode: Int,
         val headers: Map<String, String>,
         val body: ByteArray,
-        val target: String
+        val target: String = ""
     ) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true

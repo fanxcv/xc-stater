@@ -49,17 +49,6 @@ class ProxyOrchestrator(
     private val log: Logger = LoggerFactory.getLogger(ProxyOrchestrator::class.java)
 
     /**
-     * 代理响应数据类
-     */
-    data class ProxyFlowResult(
-        val statusCode: Int,
-        val headers: Map<String, String>,
-        val body: ByteArray,
-        val executionTime: Long,
-        val targetUrl: String?
-    )
-
-    /**
      * 执行完整的代理流程
      *
      * @param request 原始HTTP请求
@@ -71,7 +60,7 @@ class ProxyOrchestrator(
     suspend fun executeProxyFlow(
         request: HttpServletRequest,
         requestPath: String,
-        timeoutMs: Long = 30000
+        timeoutMs: Long
     ): ProxyClient.ProxyResponse {
         try {
             return withTimeout(timeoutMs) {
@@ -100,16 +89,14 @@ class ProxyOrchestrator(
         request: HttpServletRequest,
         requestPath: String,
     ): ProxyClient.ProxyResponse {
-        log.debug("Starting proxy flow for path: {}", requestPath)
-
         // 步骤2：统一入口判断是否代理
         val matchedConfig = configManager.findProxyConfig(requestPath)
             ?: throw ProxyException("No proxy configuration found for path: $requestPath")
 
-        log.info(
-            "Proxying request: {} to targets: {}", requestPath,
-            matchedConfig.getTargetUris()
-        )
+        // log.info(
+        //     "Proxying request: {} to targets: {}", requestPath,
+        //     matchedConfig.getTargetUris()
+        // )
 
         // 步骤3：从负载均衡器获取本次的目标地址
         val selectedTarget = selectTargetByLoadBalancer(matchedConfig)
@@ -118,7 +105,7 @@ class ProxyOrchestrator(
         val targetUri = URI(selectedTarget.url)
 
         // 步骤4：根据目的地址从连接池获取一个连接
-        val connection = acquireConnectionFromPool(targetUri)
+        val connection = connectionPool.acquireConnectionSuspend(targetUri)
 
         try {
             // 步骤5：通过原始请求构建新的请求，包括url上的参数和消息体的透传, header的透传等
@@ -127,7 +114,7 @@ class ProxyOrchestrator(
             // 步骤6：执行构建的请求，使用已获取的连接和URI对象
             return executeProxiedRequest(proxiedRequest, targetUri, connection)
         } finally {
-            // 步骤8：释放连接回连接池
+            // 步骤7：释放连接回连接池
             releaseConnectionToPool(connection)
         }
     }
@@ -153,13 +140,6 @@ class ProxyOrchestrator(
     }
 
     /**
-     * 步骤4：根据目的地址从连接池获取一个连接
-     */
-    private suspend fun acquireConnectionFromPool(targetUri: URI): Channel {
-        return connectionPool.acquireConnectionSuspend(targetUri)
-    }
-
-    /**
      * 步骤6：执行构建的请求
      */
     private suspend fun executeProxiedRequest(
@@ -171,7 +151,7 @@ class ProxyOrchestrator(
     }
 
     /**
-     * 步骤8：释放连接回连接池
+     * 步骤7：释放连接回连接池
      */
     private fun releaseConnectionToPool(connection: Channel) {
         try {
