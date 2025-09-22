@@ -49,10 +49,10 @@ class ProxyConfigurationManager(
             validateRouteConfiguration(route)
             if (route.target != null && route.target.isNotEmpty()) {
                 routeMap[route.source] = ProxyConfigMatch(route, route.target)
-                log.debug("Added route mapping: {} -> {}", route.source, route.target.map { it.uri })
+                // log.debug("Added route mapping: {} -> {}", route.source, route.target.map { it.uri })
             }
         }
-        log.info("Initialized {} proxy routes", routeMap.size)
+        // log.info("Initialized {} proxy routes", routeMap.size)
         logRouteSummary()
     }
 
@@ -129,26 +129,5 @@ class ProxyConfigurationManager(
     data class ProxyConfigMatch(
         val route: ProxyRoute,
         val targets: List<ProxyDestination>
-    ) {
-        /**
-         * 获取目标的总权重
-         */
-        fun getTotalWeight(): Int {
-            return targets.sumOf { it.weight }
-        }
-
-        /**
-         * 获取目标地址列表
-         */
-        fun getTargetUris(): List<String> {
-            return targets.map { it.uri }
-        }
-
-        /**
-         * 检查是否有可用的目标
-         */
-        fun hasAvailableTargets(): Boolean {
-            return targets.isNotEmpty()
-        }
-    }
+    )
 }

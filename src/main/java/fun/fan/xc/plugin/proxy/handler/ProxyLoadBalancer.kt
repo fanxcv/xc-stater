@@ -1,7 +1,5 @@
 package `fun`.fan.xc.plugin.proxy.handler
 
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import kotlin.random.Random
 
 /**
@@ -76,8 +74,6 @@ open class ProxyLoadBalancer() {
         private val weightedUrls: List<WeightedUrl>,
         private val totalWeight: Int
     ) {
-        private val log: Logger = LoggerFactory.getLogger(ProxyLoadBalancer::class.java)
-
         private val failedUrls = mutableSetOf<String>()
         private val currentWeights = weightedUrls.map { it.weight }.toMutableList() // 当前权重列表
 

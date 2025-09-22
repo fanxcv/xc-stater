@@ -21,8 +21,8 @@ import java.lang.annotation.*;
         ProxyClient.class,
         ProxyOrchestrator.class,
         HostPortChannelPool.class,
-        XcProxyAutoConfiguration.class,
         HttpResponseTransformer.class,
+        XcProxyAutoConfiguration.class,
         ProxyConfigurationManager.class,
 })
 public @interface EnableXcProxy {

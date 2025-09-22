@@ -1,10 +1,15 @@
 package `fun`.fan.xc.plugin.proxy.transformer
 
 import `fun`.fan.xc.plugin.proxy.exception.ProxyException
+import `fun`.fan.xc.starter.utils.Dict
 import io.netty.handler.codec.http.FullHttpRequest
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import org.springframework.web.multipart.MultipartFile
+import org.springframework.web.multipart.support.StandardMultipartHttpServletRequest
+import java.io.ByteArrayOutputStream
 import java.net.URI
+import java.nio.charset.StandardCharsets
 import javax.servlet.http.HttpServletRequest
 
 /**
@@ -52,11 +57,16 @@ class HttpRequestTransformer {
      * 转换Servlet请求为Netty HTTP请求
      *
      * @param request 原始Servlet请求
-     * @param targetUrl 目标服务器URL
+     * @param targetUri 目标服务器URL
      * @return 转换后的Netty HTTP请求
      * @throws ProxyException 转换失败异常
      */
     fun transform(request: HttpServletRequest, targetUri: URI): FullHttpRequest {
+
+        // 检查是否为multipart请求
+        val isMultipartRequest = isMultipartRequest(request)
+        val boundary = if (isMultipartRequest) generateBoundary() else Dict.BLANK
+
         // 构建目标请求路径
         val targetPath = buildTargetPath(request, targetUri)
 
@@ -64,7 +74,11 @@ class HttpRequestTransformer {
         val httpMethod = getHttpMethod(request.method)
 
         // 读取请求体
-        val requestBody = readRequestBody(request)
+        val requestBody = if (isMultipartRequest) {
+            reconstructMultipartBody(request, boundary)
+        } else {
+            readRequestBody(request)
+        }
 
         // 创建Netty请求
         val nettyRequest = createNettyRequest(httpMethod, targetPath, requestBody)
@@ -74,6 +88,11 @@ class HttpRequestTransformer {
 
         // 设置必要的Headers
         setRequiredHeaders(nettyRequest, requestBody, targetUri)
+
+        if (isMultipartRequest) {
+            // 特殊处理multipart的Content-Type
+            nettyRequest.headers().set("Content-Type", "multipart/form-data; boundary=$boundary")
+        }
 
         // log.debug(
         //     "Request transformation completed. Method: {}, Path: {}, BodySize: {}",
@@ -86,7 +105,7 @@ class HttpRequestTransformer {
     /**
      * 构建目标请求路径
      */
-    private fun buildTargetPath(request: HttpServletRequest, targetUri: java.net.URI): String {
+    private fun buildTargetPath(request: HttpServletRequest, targetUri: URI): String {
         // 使用目标URL的路径部分
         val pathBuilder = StringBuilder(targetUri.path)
 
@@ -108,6 +127,14 @@ class HttpRequestTransformer {
     }
 
     /**
+     * 检查是否为multipart请求
+     */
+    private fun isMultipartRequest(request: HttpServletRequest): Boolean {
+        val contentType = request.contentType ?: return false
+        return contentType.startsWith("multipart/", ignoreCase = true)
+    }
+
+    /**
      * 读取请求体
      */
     private fun readRequestBody(request: HttpServletRequest): ByteArray {
@@ -116,6 +143,110 @@ class HttpRequestTransformer {
         } catch (e: Exception) {
             log.warn("Failed to read request body: {}", e.message)
             ByteArray(0)
+        }
+    }
+
+    /**
+     * 生成boundary字符串
+     */
+    private fun generateBoundary(): String {
+        return "----WebKitFormBoundary" + System.currentTimeMillis()
+    }
+
+    /**
+     * 重构multipart请求体
+     */
+    private fun reconstructMultipartBody(request: HttpServletRequest, boundary: String): ByteArray {
+        try {
+            // 获取multipart文件
+            val multipartFiles = getMultipartFiles(request)
+
+            // 获取表单参数
+            val parameterMap = request.parameterMap
+
+            if (multipartFiles.isEmpty() && parameterMap.isEmpty()) {
+                return ByteArray(0)
+            }
+
+            // 构建multipart内容
+            val contentBuilder = ByteArrayOutputStream()
+
+            // 添加表单字段
+            parameterMap.forEach { (name, values) ->
+                values.forEach { value ->
+                    writeFormField(contentBuilder, boundary, name, value)
+                }
+            }
+
+            // 添加文件字段
+            multipartFiles.forEach { (name, files) ->
+                files.forEach { file ->
+                    writeFileField(contentBuilder, boundary, name, file)
+                }
+            }
+
+            // 添加结束boundary
+            contentBuilder.write("--$boundary--\r\n".toByteArray(StandardCharsets.UTF_8))
+
+            return contentBuilder.toByteArray()
+        } catch (e: Exception) {
+            log.warn("Failed to reconstruct multipart body: {}", e.message)
+            return ByteArray(0)
+        }
+    }
+
+    /**
+     * 获取multipart文件
+     */
+    private fun getMultipartFiles(request: HttpServletRequest): Map<String, List<MultipartFile>> {
+        val files = mutableMapOf<String, List<MultipartFile>>()
+
+        if (request is StandardMultipartHttpServletRequest) {
+            val fileMap = request.multiFileMap
+            fileMap.forEach { (name, fileItems) ->
+                files[name] = fileItems
+            }
+        }
+
+        return files
+    }
+
+    /**
+     * 写入表单字段
+     */
+    private fun writeFormField(
+        outputStream: ByteArrayOutputStream,
+        boundary: String,
+        name: String,
+        value: String
+    ) {
+        val fieldHeader = "--$boundary\r\n" +
+                "Content-Disposition: form-data; name=\"$name\"\r\n" +
+                "\r\n"
+        outputStream.write(fieldHeader.toByteArray(StandardCharsets.UTF_8))
+        outputStream.write(value.toByteArray(StandardCharsets.UTF_8))
+        outputStream.write("\r\n".toByteArray(StandardCharsets.UTF_8))
+    }
+
+    /**
+     * 写入文件字段
+     */
+    private fun writeFileField(
+        outputStream: ByteArrayOutputStream,
+        boundary: String,
+        name: String,
+        file: MultipartFile
+    ) {
+        try {
+            val fieldHeader = "--$boundary\r\n" +
+                    "Content-Disposition: form-data; name=\"$name\"; filename=\"${file.originalFilename ?: "file"}\"\r\n" +
+                    "Content-Type: ${file.contentType ?: "application/octet-stream"}\r\n" +
+                    "\r\n"
+            outputStream.write(fieldHeader.toByteArray(StandardCharsets.UTF_8))
+            outputStream.write(file.bytes)
+            outputStream.write("\r\n".toByteArray(StandardCharsets.UTF_8))
+        } catch (e: Exception) {
+            log.warn("Failed to write file field: {}", e.message)
         }
     }
 
@@ -193,7 +324,7 @@ class HttpRequestTransformer {
     private fun setRequiredHeaders(
         nettyRequest: FullHttpRequest,
         requestBody: ByteArray,
-        targetUri: java.net.URI
+        targetUri: URI
     ) {
         // 设置Host Header
         val port = if (targetUri.port == -1) {
@@ -228,50 +359,5 @@ class HttpRequestTransformer {
      */
     private fun shouldFilterHeader(headerName: String): Boolean {
         return filteredHeaders.contains(headerName.lowercase())
-    }
-
-    /**
-     * 验证转换后的请求
-     */
-    fun validateTransformedRequest(nettyRequest: FullHttpRequest): Boolean {
-        // 检查必要Headers
-        if (!nettyRequest.headers().contains("Host")) {
-            log.warn("Transformed request missing Host header")
-            return false
-        }
-
-        if (!nettyRequest.headers().contains("Content-Length")) {
-            log.warn("Transformed request missing Content-Length header")
-            return false
-        }
-
-        // 检查HTTP版本
-        if (nettyRequest.protocolVersion() != io.netty.handler.codec.http.HttpVersion.HTTP_1_1) {
-            log.warn("Transformed request using unsupported HTTP version: {}", nettyRequest.protocolVersion())
-            return false
-        }
-
-        return true
-    }
-
-    /**
-     * 获取过滤的Headers列表（只读）
-     */
-    fun getFilteredHeaders(): Set<String> {
-        return filteredHeaders.toSet()
-    }
-
-    /**
-     * 添加自定义过滤Header
-     */
-    fun addFilteredHeader(headerName: String): Boolean {
-        return filteredHeaders.add(headerName.lowercase())
-    }
-
-    /**
-     * 移除自定义过滤Header
-     */
-    fun removeFilteredHeader(headerName: String): Boolean {
-        return filteredHeaders.remove(headerName.lowercase())
     }
 }
