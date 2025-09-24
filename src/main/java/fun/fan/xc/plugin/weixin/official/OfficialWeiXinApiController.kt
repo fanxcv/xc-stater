@@ -70,7 +70,7 @@ class OfficialWeiXinApiController(
         return mapOf(
             "code" to 0,
             "access_token" to accessTokenManager.token(),
-            "expires" to accessTokenManager.expires()
+            "expires_in" to accessTokenManager.expires()
         )
     }
 
@@ -82,7 +82,7 @@ class OfficialWeiXinApiController(
         return mapOf(
             "code" to 0,
             "ticket" to jsApiTicketManager.token(),
-            "expires" to jsApiTicketManager.expires()
+            "expires_in" to jsApiTicketManager.expires()
         )
     }
 

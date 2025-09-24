@@ -51,7 +51,7 @@ class ProgramWeiXinApiController(
         return mapOf(
             "code" to 0,
             "access_token" to accessTokenManager.token(),
-            "expires" to accessTokenManager.expires()
+            "expires_in" to accessTokenManager.expires()
         )
     }
 
