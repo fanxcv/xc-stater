@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration scan="true">
     <springProperty scope="context" name="FilePath" source="logging.file.path" default=""/>
-    <springProperty scope="context" name="AppName" source="spring.application.name" default="log"/>
-    <springProperty scope="context" name="filePattern" source="logging.pattern.console" default="%d{MM-dd HH:mm:ss.SSS} %-5p [%-16.16t{16}] %-40.40logger{40} : %m%n"/>
+    <springProperty scope="context" name="AppName" source="spring.application.name" default=""/>
+    <springProperty scope="context" name="filePattern" source="logging.pattern.file" default=""/>
+    <springProperty scope="context" name="consolePattern" source="logging.pattern.console" default=""/>
 
-    <property name="APP" value="${AppName}"/>
+    <property name="APP" value="${AppName:-log}"/>
     <property name="LOG_HOME" value="${FilePath}"/>
 
     <property name="MAX_HISTORY" value="30"/>
-    <property name="FILE_PATTERN" value="${filePattern}"/>
-    <property name="CONSOLE_PATTERN"
-              value="%d{MM-dd HH:mm:ss} %clr(%5level) %cyan(%-40.40logger{39})-%magenta(%4line) [%blue(%-15.15thread{15})]%clr( ){faint} "/>
+    <property name="FILE_PATTERN" value="${filePattern:-%d{MM-dd HH:mm:ss.SSS} %-5p [%-16.16t{16}] %-40.40logger{40} : %m%n}"/>
+    <property name="CONSOLE_PATTERN" value="${consolePattern:-%d{MM-dd HH:mm:ss} %clr(%5level) %cyan(%-40.40logger{39})-%magenta(%4line) [%blue(%-15.15thread{15})]%clr( ){faint} }"/>
 
     <conversionRule conversionWord="clr" converterClass="org.springframework.boot.logging.logback.ColorConverter"/>
 
