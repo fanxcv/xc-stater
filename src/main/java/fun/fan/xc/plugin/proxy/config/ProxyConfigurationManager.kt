@@ -35,8 +35,14 @@ class ProxyConfigurationManager(
 
     private val log: Logger = LoggerFactory.getLogger(ProxyConfigurationManager::class.java)
 
+    // 实际路由配置缓存
+    private val routeConfigCache = mutableMapOf<String, ProxyConfigMatch>()
+
     // 路由映射缓存
     private val routeMap = mutableMapOf<String, ProxyConfigMatch>()
+
+    // 路径匹配器
+    private val pathMatcher = AntPathMatcher()
 
     init {
         initializeRouteMap()
@@ -48,12 +54,11 @@ class ProxyConfigurationManager(
     private fun initializeRouteMap() {
         properties.route?.forEach { route ->
             validateRouteConfiguration(route)
-            if (route.target != null && route.target.isNotEmpty()) {
-                routeMap[route.source] = ProxyConfigMatch(route, route.target)
-                // log.debug("Added route mapping: {} -> {}", route.source, route.target.map { it.uri })
+            if (route.target == null || route.target.isEmpty()) {
+                return
             }
+            routeMap[route.source] = ProxyConfigMatch(route, route.target, hasPattern = containsWildcard(route.source))
         }
-        // log.info("Initialized {} proxy routes", routeMap.size)
         logRouteSummary()
     }
 
@@ -101,7 +106,43 @@ class ProxyConfigurationManager(
             return null
         }
 
-        return routeMap[requestPath]
+        return routeConfigCache[requestPath] ?: initProxyConfig(requestPath)?.also {
+            routeConfigCache[requestPath] = it
+        }
+    }
+
+    /**
+     * 初始化代理配置
+     *
+     * @param requestPath 请求路径
+     * @return 匹配的配置，如果没有匹配则返回null
+     */
+    fun initProxyConfig(requestPath: String): ProxyConfigMatch? {
+        // 首先尝试精确匹配（保持向后兼容）
+        routeMap[requestPath]?.let { return it }
+
+        // 然后尝试模式匹配
+        for ((pattern, config) in routeMap) {
+            if (!pathMatcher.match(pattern, requestPath)) {
+                continue
+            }
+            // 检查是否包含通配符，如果是，创建包含匹配路径部分的配置
+            if (config.hasPattern) {
+                val pathWithinPattern = pathMatcher.extractPathWithinPattern(pattern, requestPath)
+                return ProxyConfigMatch(config.route, config.targets, pathWithinPattern)
+            } else {
+                return config
+            }
+        }
+
+        return null
+    }
+
+    /**
+     * 检查路径模式是否包含通配符
+     */
+    private fun containsWildcard(pattern: String): Boolean {
+        return pattern.contains("*") || pattern.contains("?") || pattern.contains("{")
     }
 
     /**
@@ -129,6 +170,8 @@ class ProxyConfigurationManager(
      */
     data class ProxyConfigMatch(
         val route: ProxyRoute,
-        val targets: List<ProxyDestination>
+        val targets: List<ProxyDestination>,
+        val pathWithinPattern: String = "",
+        val hasPattern: Boolean = false
     )
 }

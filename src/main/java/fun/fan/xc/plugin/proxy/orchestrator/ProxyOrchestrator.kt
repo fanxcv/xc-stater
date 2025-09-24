@@ -140,7 +140,7 @@ class ProxyOrchestrator(
 
                 try {
                     // 步骤5：通过原始请求构建新的请求，包括url上的参数和消息体的透传, header的透传等
-                    val proxiedRequest = requestTransformer.transform(request, targetUri)
+                    val proxiedRequest = requestTransformer.transform(request, targetUri, matchedConfig.pathWithinPattern)
 
                     // 步骤6：执行构建的请求，使用已获取的连接和URI对象
                     val result = client.executeProxyRequest(proxiedRequest, targetUri.toString(), connection, timeoutMs)

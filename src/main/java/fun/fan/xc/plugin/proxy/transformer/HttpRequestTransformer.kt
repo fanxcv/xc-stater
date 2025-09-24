@@ -62,13 +62,26 @@ class HttpRequestTransformer {
      * @throws ProxyException 转换失败异常
      */
     fun transform(request: HttpServletRequest, targetUri: URI): FullHttpRequest {
+        return transform(request, targetUri, "")
+    }
+
+    /**
+     * 转换Servlet请求为Netty HTTP请求
+     *
+     * @param request 原始Servlet请求
+     * @param targetUri 目标服务器URL
+     * @param pathWithinPattern 从路径模式中提取的路径部分，将追加到目标路径后面
+     * @return 转换后的Netty HTTP请求
+     * @throws ProxyException 转换失败异常
+     */
+    fun transform(request: HttpServletRequest, targetUri: URI, pathWithinPattern: String = ""): FullHttpRequest {
 
         // 检查是否为multipart请求
         val isMultipartRequest = isMultipartRequest(request)
         val boundary = if (isMultipartRequest) generateBoundary() else Dict.BLANK
 
         // 构建目标请求路径
-        val targetPath = buildTargetPath(request, targetUri)
+        val targetPath = buildTargetPath(request, targetUri, pathWithinPattern)
 
         // 获取HTTP方法
         val httpMethod = getHttpMethod(request.method)
@@ -105,9 +118,20 @@ class HttpRequestTransformer {
     /**
      * 构建目标请求路径
      */
-    private fun buildTargetPath(request: HttpServletRequest, targetUri: URI): String {
+    private fun buildTargetPath(request: HttpServletRequest, targetUri: URI, pathWithinPattern: String = ""): String {
         // 使用目标URL的路径部分
         val pathBuilder = StringBuilder(targetUri.path)
+
+        // 如果有从路径模式中提取的路径部分，追加到目标路径后面
+        if (pathWithinPattern.isNotEmpty()) {
+            // 确保目标路径以/结尾，然后追加路径部分
+            if (!targetUri.path.endsWith("/")) {
+                pathBuilder.append("/")
+            }
+            // 移除路径部分开头的斜杠（如果存在），然后追加
+            val normalizedPath = if (pathWithinPattern.startsWith("/")) pathWithinPattern.substring(1) else pathWithinPattern
+            pathBuilder.append(normalizedPath)
+        }
 
         // 添加查询参数
         if (request.queryString != null) {
