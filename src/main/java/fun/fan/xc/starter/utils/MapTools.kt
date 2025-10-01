@@ -1,12 +1,9 @@
 package `fun`.fan.xc.starter.utils
 
 import cn.hutool.core.lang.Assert
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import java.util.function.Supplier
 
 object MapTools {
-    private val log: Logger = LoggerFactory.getLogger(MapTools::class.java)
 
     @JvmStatic
     fun <K, V> getOrInit(map: MutableMap<K, V>?, key: K, supplier: Supplier<V>): V? {

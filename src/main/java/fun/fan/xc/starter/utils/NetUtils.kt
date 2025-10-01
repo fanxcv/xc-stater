@@ -33,9 +33,7 @@ object NetUtils {
         var type: String = MediaType.APPLICATION_OCTET_STREAM_VALUE
     }
 
-    data class Param(val key: String, val value: Any?, val type: MediaType = MediaType.TEXT_PLAIN) {
-
-    }
+    data class Param(val key: String, val value: Any?, val type: MediaType = MediaType.TEXT_PLAIN)
 
     @JvmStatic
     fun build(): Builder = Builder()
@@ -371,15 +369,21 @@ object NetUtils {
         throw XcToolsException("Server Error, response code: ${connection.responseCode}, uri: $uri, message: $err")
     }
 
+    @Suppress("UNCHECKED_CAST")
     private fun <T> getResult(uri: String, connection: HttpURLConnection?, type: Type): T {
         return doResult(uri, connection) { _, c ->
             try {
-                if (type == String::class.java) {
-                    BufferedReader(InputStreamReader(c.inputStream)).use(BufferedReader::readText) as T
-                } else if (type is Class<*> && InputStream::class.java.isAssignableFrom(type)) {
-                    c.inputStream.use { it as T }
-                } else {
-                    c.inputStream.use { JSON.parseObject(it, type) }
+                when (type) {
+                    String::class.java -> {
+                        BufferedReader(InputStreamReader(c.inputStream)).use(BufferedReader::readText) as T
+                    }
+                    is Class<*> if InputStream::class.java.isAssignableFrom(type) -> {
+                        c.inputStream.use { it as T }
+                    }
+
+                    else -> {
+                        c.inputStream.use { JSON.parseObject(it, type) }
+                    }
                 }
             } catch (e: Exception) {
                 throw XcToolsException("failed to parse the returned data, uri: $uri \n\t ${e.message}")
@@ -445,7 +449,7 @@ object NetUtils {
         val connection = initConnection(url, connectTimeout, readTimeout)
         connection.setRequestProperty("connection", "Keep-Alive")
         connection.setRequestProperty("Charset", "UTF-8")
-        connection.setRequestProperty("Accept", "*/*");
+        connection.setRequestProperty("Accept", "*/*")
         connection.requestMethod = "POST"
         connection.useCaches = false
         connection.doOutput = true

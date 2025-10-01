@@ -7,7 +7,6 @@ import org.apache.tomcat.util.http.Rfc6265CookieProcessor
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
-import org.springframework.boot.web.embedded.tomcat.TomcatContextCustomizer
 import org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactory
 import org.springframework.boot.web.server.WebServerFactoryCustomizer
 import org.springframework.context.annotation.Bean
@@ -22,12 +21,12 @@ import org.springframework.web.filter.CorsFilter
  */
 @Order
 @Configuration
-open class XcCorsConfig(private val xcConfig: XcConfiguration) {
+class XcCorsConfig(private val xcConfig: XcConfiguration) {
     private val log: Logger = LoggerFactory.getLogger(this::class.java)
 
     @Bean
     @ConditionalOnMissingBean(CorsFilter::class)
-    open fun corsFilter(): CorsFilter {
+    fun corsFilter(): CorsFilter {
         log.info("===> core: init xc cors filter")
         val config: CorsConfig = xcConfig.cors
         log.info("origins allowed {}", config.allowedOrigins)
@@ -47,11 +46,11 @@ open class XcCorsConfig(private val xcConfig: XcConfiguration) {
 
     @Bean
     @ConditionalOnMissingBean(WebServerFactoryCustomizer::class)
-    open fun cookieProcessorCustomizer(): WebServerFactoryCustomizer<TomcatServletWebServerFactory> {
+    fun cookieProcessorCustomizer(): WebServerFactoryCustomizer<TomcatServletWebServerFactory> {
         log.info("===> core: init xc cookie processor customizer")
         return WebServerFactoryCustomizer { factory: TomcatServletWebServerFactory ->
             factory.addContextCustomizers(
-                TomcatContextCustomizer { context: Context -> context.cookieProcessor = Rfc6265CookieProcessor() })
+                { context: Context -> context.cookieProcessor = Rfc6265CookieProcessor() })
         }
     }
 }

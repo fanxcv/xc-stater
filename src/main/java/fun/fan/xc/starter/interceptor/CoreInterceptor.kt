@@ -18,8 +18,8 @@ import org.springframework.util.StringUtils
 import org.springframework.web.method.HandlerMethod
 import org.springframework.web.servlet.HandlerInterceptor
 import java.nio.charset.Charset
-import javax.servlet.http.HttpServletRequest
-import javax.servlet.http.HttpServletResponse
+import jakarta.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletResponse
 
 /**
  * 核心拦截器, 主要处理请求参数
@@ -72,10 +72,12 @@ class CoreInterceptor(applicationContext: ApplicationContext) : HandlerIntercept
     private fun getRequestParam(request: HttpServletRequest, input: EventInner) {
         // 先直接获取参数
         request.parameterMap?.forEach { (k: String, v: Array<String>?) ->
-            input.putParam(
-                k,
-                if (v.size == 1) v[0] else listOf(*v)
-            )
+            v?.let { values ->
+                input.putParam(
+                    k,
+                    if (values.size == 1) values[0] else values.toList()
+                )
+            }
         }
         // 处理json和xml两种数据
         val contentType = request.contentType

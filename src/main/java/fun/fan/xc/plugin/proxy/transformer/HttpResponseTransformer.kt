@@ -4,7 +4,7 @@ import `fun`.fan.xc.plugin.proxy.client.ProxyClient
 import `fun`.fan.xc.plugin.proxy.exception.ProxyException
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import javax.servlet.http.HttpServletResponse
+import jakarta.servlet.http.HttpServletResponse
 
 /**
  * HTTP响应转换器

@@ -2,7 +2,7 @@ name: deploy xc-starter
 on:
   push:
     branches:
-      - 1.8
+      - v3
     paths:
       - 'pom.xml'
       - '**/src/**'
@@ -17,7 +17,7 @@ jobs:
       - name: Set up Maven Central Repository
         uses: actions/setup-java@v4
         with:
-          java-version: '8'
+          java-version: '17'
           distribution: 'zulu'
           cache: maven
           cache-dependency-path: '.gitignore'

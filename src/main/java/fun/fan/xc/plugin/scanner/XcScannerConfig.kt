@@ -32,7 +32,7 @@ class XcScannerConfig : ImportBeanDefinitionRegistrar, ResourceLoaderAware, Bean
     private var resourceLoader: ResourceLoader? = null
     private var beanFactory: BeanFactory? = null
 
-    @SuppressWarnings("unchecked")
+    @Suppress("UNCHECKED_CAST")
     override fun registerBeanDefinitions(annotationMetadata: AnnotationMetadata, registry: BeanDefinitionRegistry) {
         val attributes = annotationMetadata.getAnnotationAttributes(
             XcScan::class.java.name
@@ -41,13 +41,13 @@ class XcScannerConfig : ImportBeanDefinitionRegistrar, ResourceLoaderAware, Bean
             log.warn("get XcScan attributes failed")
             return
         }
-        var basePackages = attributes!!["basePackages"] as Array<String>
+        var basePackages = attributes!!["basePackages"] as? Array<String> ?: emptyArray()
         if (ArrayUtil.isEmpty(basePackages)) {
             // 如果没有指定需要扫描的包, 则默认启动类所在的包
             // basePackages = arrayOf((annotationMetadata as StandardAnnotationMetadata).introspectedClass.packageName)
             basePackages = arrayOf(getBasePackage(annotationMetadata))
         }
-        val matches = attributes["matches"] as Array<AnnotationAttributes>
+        val matches = attributes["matches"] as? Array<AnnotationAttributes> ?: emptyArray()
         if (ArrayUtil.isEmpty(matches)) {
             log.warn("scanner types is empty")
             return

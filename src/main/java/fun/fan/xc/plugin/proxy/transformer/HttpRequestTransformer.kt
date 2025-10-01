@@ -10,7 +10,7 @@ import org.springframework.web.multipart.support.StandardMultipartHttpServletReq
 import java.io.ByteArrayOutputStream
 import java.net.URI
 import java.nio.charset.StandardCharsets
-import javax.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletRequest
 
 /**
  * HTTP请求转换器

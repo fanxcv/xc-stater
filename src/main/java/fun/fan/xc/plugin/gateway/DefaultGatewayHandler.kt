@@ -19,7 +19,7 @@ import org.springframework.context.annotation.Import
 import org.springframework.lang.NonNull
 import org.springframework.util.Assert
 import org.springframework.web.method.HandlerMethod
-import javax.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletRequest
 
 /**
  * 默认网关

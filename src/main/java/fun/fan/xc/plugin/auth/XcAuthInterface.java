@@ -2,7 +2,7 @@ package fun.fan.xc.plugin.auth;
 
 import fun.fan.xc.starter.XcConfiguration;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.Set;
 
 /**

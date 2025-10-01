@@ -3,7 +3,6 @@ package `fun`.fan.xc.plugin.ca.mcs
 import com.alibaba.fastjson2.JSON
 import com.alibaba.fastjson2.JSONObject
 import com.alibaba.fastjson2.TypeReference
-import com.alibaba.fastjson2.toJSONString
 import `fun`.fan.xc.plugin.ca.mcs.annotations.McsPath
 import `fun`.fan.xc.plugin.ca.mcs.entity.McsBody
 import `fun`.fan.xc.plugin.ca.mcs.entity.Request
@@ -51,10 +50,10 @@ class McsClient(val config: McsConfig) {
             .doPost { it ->
                 val response: Response<JSONObject> = JSON.parseObject(it, object : TypeReference<Response<JSONObject?>?>() {}.type)
                 if (config.isDebug) {
-                    log.debug("请求地址: {}\n返回: {}", url, response.toJSONString())
+                    log.debug("请求地址: {}\n返回: {}", url, JSON.toJSONString(response))
                 }
                 if (response.resHead?.code != "200") {
-                    log.error("接口调用失败: {}", response.toJSONString())
+                    log.error("接口调用失败: {}", JSON.toJSONString(response))
                     throw XcServiceException(response.resHead?.message ?: "接口调用失败")
                 }
                 response.resBody.to(type)

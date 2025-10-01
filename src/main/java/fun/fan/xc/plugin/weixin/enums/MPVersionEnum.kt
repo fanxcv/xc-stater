@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonValue
 
 enum class MPVersionEnum(
     @JsonValue
-    @JSONField
+    @field:JSONField
     val value: String
 ) {
     /**

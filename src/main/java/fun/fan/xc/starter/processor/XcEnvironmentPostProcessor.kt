@@ -15,7 +15,6 @@ import org.springframework.core.env.ConfigurableEnvironment
 import org.springframework.core.env.MutablePropertySources
 import org.springframework.core.io.Resource
 import org.springframework.core.io.UrlResource
-import java.util.*
 
 /**
  * 用于项目启动时加载远程配置文件

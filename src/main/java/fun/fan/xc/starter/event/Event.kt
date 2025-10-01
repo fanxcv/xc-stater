@@ -19,7 +19,7 @@ interface Event {
     /**
      * 返回一个参数
      * @param key   参数名
-     * @param clazz 参数类型
+     * @param type 参数类型
      * @return 参数值
      */
     fun <T> getParam(key: String, type: Type): T?
@@ -32,7 +32,7 @@ interface Event {
 
     /**
      * 把参数封装成bean后返回
-     * @param type 待封装的Bean Class
+     * @param clazz 待封装的Bean Class
      * @return Bean对象
      */
     fun <T> getBean(clazz: Class<T>): T?

@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonValue
 
 enum class MiniProgramStateEnum(
     @JsonValue
-    @JSONField
+    @field:JSONField
     val value: String
 ) {
     /**
@@ -28,7 +28,7 @@ enum class MiniProgramStateEnum(
         @JsonCreator
         @JvmStatic
         fun getState(value: String): MiniProgramStateEnum? {
-            for (v in MiniProgramStateEnum.values()) {
+            for (v in MiniProgramStateEnum.entries) {
                 if (v.value == value) {
                     return v
                 }

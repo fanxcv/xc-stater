@@ -4,21 +4,23 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>fun.fan-x</groupId>
-    <artifactId>xc-starter</artifactId>
-    <version>1.0.54-SNAPSHOT</version>
+    <artifactId>xc-boot3-starter</artifactId>
+    <version>3.0.0-SNAPSHOT</version>
 
     <name>xc-starter</name>
     <description>自定义spring boot组件包</description>
 
     <properties>
-        <spring.boot.version>2.7.15</spring.boot.version>
-        <guava.version>33.0.0-jre</guava.version>
-        <fastjson2.version>2.0.39</fastjson2.version>
-        <commons.lang3.version>3.12.0</commons.lang3.version>
-        <hutool.version>5.8.25</hutool.version>
+        <spring.boot.version>3.5.5</spring.boot.version>
+        <guava.version>33.5.0-jre</guava.version>
+        <fastjson2.version>2.0.59</fastjson2.version>
+        <commons.lang3.version>3.19.0</commons.lang3.version>
+        <hutool.version>5.8.40</hutool.version>
+        <mybatis.plus.version>3.5.14</mybatis.plus.version>
 
-        <java.version>1.8</java.version>
-        <kotlin.version>1.9.23</kotlin.version>
+        <java.version>17</java.version>
+        <kotlin.version>2.2.20</kotlin.version>
+        <kotlinx.coroutines.version>1.10.2</kotlinx.coroutines.version>
     </properties>
 
     <distributionManagement>
@@ -42,7 +44,7 @@
         </dependency>
         <dependency>
             <groupId>com.alibaba.fastjson2</groupId>
-            <artifactId>fastjson2-extension-spring5</artifactId>
+            <artifactId>fastjson2-extension-spring6</artifactId>
             <version>${fastjson2.version}</version>
         </dependency>
         <dependency>
@@ -105,31 +107,43 @@
         <dependency>
             <groupId>io.minio</groupId>
             <artifactId>minio</artifactId>
-            <version>8.5.11</version>
+            <version>8.6.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp</artifactId>
+            <version>4.12.0</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.github.wechatpay-apiv3</groupId>
             <artifactId>wechatpay-java</artifactId>
-            <version>0.2.7</version>
+            <version>0.2.17</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.mybatis</groupId>
             <artifactId>mybatis</artifactId>
-            <version>3.5.13</version>
+            <version>${mybatis.plus.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-annotation</artifactId>
-            <version>3.5.3.1</version>
+            <version>${mybatis.plus.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-extension</artifactId>
-            <version>3.5.3.1</version>
+            <version>${mybatis.plus.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-jsqlparser</artifactId>
+            <version>${mybatis.plus.version}</version>
             <scope>provided</scope>
         </dependency>
         <!-- itextpdf -->
@@ -156,14 +170,17 @@
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-reflect</artifactId>
+            <version>${kotlin.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-stdlib-jdk8</artifactId>
+            <version>${kotlin.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlinx</groupId>
             <artifactId>kotlinx-coroutines-core</artifactId>
+            <version>${kotlinx.coroutines.version}</version>
         </dependency>
 
         <dependency>
@@ -181,7 +198,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
-            <version>4.1.94.Final</version>
+            <version>4.1.127.Final</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
@@ -194,6 +211,59 @@
                 <version>${spring.boot.version}</version>
                 <scope>import</scope>
                 <type>pom</type>
+            </dependency>
+
+            <!-- Kotlin 核心库版本管理 -->
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-stdlib</artifactId>
+                <version>${kotlin.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-stdlib-jdk7</artifactId>
+                <version>${kotlin.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-stdlib-jdk8</artifactId>
+                <version>${kotlin.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-reflect</artifactId>
+                <version>${kotlin.version}</version>
+            </dependency>
+
+            <!-- Kotlin 协程版本管理 -->
+            <dependency>
+                <groupId>org.jetbrains.kotlinx</groupId>
+                <artifactId>kotlinx-coroutines-core</artifactId>
+                <version>${kotlinx.coroutines.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jetbrains.kotlinx</groupId>
+                <artifactId>kotlinx-coroutines-core-jvm</artifactId>
+                <version>${kotlinx.coroutines.version}</version>
+            </dependency>
+
+            <!-- MyBatis 版本管理 -->
+            <dependency>
+                <groupId>org.mybatis</groupId>
+                <artifactId>mybatis</artifactId>
+                <version>${mybatis.plus.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-core</artifactId>
+                <version>${mybatis.plus.version}</version>
+            </dependency>
+
+            <!-- 其他冲突库版本管理 -->
+            <dependency>
+                <groupId>org.jetbrains</groupId>
+                <artifactId>annotations</artifactId>
+                <version>13.0</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -212,12 +282,13 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.0</version>
+                <version>3.11.0</version>
                 <configuration>
                     <skip>true</skip>
                     <source>${java.version}</source>
                     <target>${java.version}</target>
                     <encoding>UTF-8</encoding>
+                    <release>17</release>
                     <annotationProcessorPaths>
                         <path>
                             <groupId>org.projectlombok</groupId>
@@ -277,6 +348,8 @@
                 <configuration>
                     <args>
                         <arg>-Xjsr305=strict</arg>
+                        <arg>-jvm-target</arg>
+                        <arg>17</arg>
                     </args>
                     <compilerPlugins>
                         <plugin>spring</plugin>
@@ -315,6 +388,7 @@
                             <name>build.time</name>
                             <pattern>yyyyMMdd.HHmmss</pattern>
                             <timeZone>GMT+8</timeZone>
+                            <locale>en_US</locale>
                         </configuration>
                     </execution>
                 </executions>

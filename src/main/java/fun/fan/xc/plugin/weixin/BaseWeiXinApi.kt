@@ -23,6 +23,7 @@ open class BaseWeiXinApi(
    * 返回对象为 {@link com.wechat.pay.java.core.RSAAutoCertificateConfig}
    * 此处使用泛型是为了避免未引入微信支付时使用模块报错
    */
+  @Suppress("UNCHECKED_CAST")
   fun <T> getAutoCertConfig(): T {
     Assert.notNull(pay, "微信支付配置不能为空")
     val resource = DefaultResourceLoader()
@@ -38,6 +39,7 @@ open class BaseWeiXinApi(
    * 返回对象为 {@link com.wechat.pay.java.core.RSAConfig}
    * 此处使用泛型是为了避免未引入微信支付时使用模块报错
    */
+  @Suppress("UNCHECKED_CAST")
   fun <T> getWxPayConfig(): T {
     Assert.notNull(pay, "微信支付配置不能为空")
     val resource = DefaultResourceLoader()

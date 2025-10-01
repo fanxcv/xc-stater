@@ -1,7 +1,7 @@
 package `fun`.fan.xc.plugin.gateway
 
 import org.springframework.web.method.HandlerMethod
-import javax.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletRequest
 
 /**
  * Gateway处理器接口

@@ -26,7 +26,7 @@ import org.springframework.web.servlet.DispatcherServlet
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter
-import javax.servlet.Servlet
+import jakarta.servlet.Servlet
 
 @Configuration
 @ComponentScan
@@ -35,7 +35,7 @@ import javax.servlet.Servlet
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @ConditionalOnClass(Servlet::class, DispatcherServlet::class, WebMvcConfigurer::class)
 @ConditionalOnProperty(prefix = "xc.core", value = ["enable"], havingValue = "true", matchIfMissing = true)
-open class XcCoreAutoConfiguration : WebMvcRegistrations, WebMvcConfigurer, ApplicationContextAware {
+class XcCoreAutoConfiguration : WebMvcRegistrations, WebMvcConfigurer, ApplicationContextAware {
     private val log: Logger = LoggerFactory.getLogger(XcCoreAutoConfiguration::class.java)
     private lateinit var applicationContext: ApplicationContext
     private lateinit var config: XcConfiguration.CoreConfig
