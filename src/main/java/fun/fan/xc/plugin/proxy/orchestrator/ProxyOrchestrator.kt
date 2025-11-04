@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory
 import java.net.URI
 import java.util.concurrent.TimeoutException
 import javax.servlet.http.HttpServletRequest
+import kotlin.math.pow
 
 /**
  * 代理流程统一协调器
@@ -42,7 +43,6 @@ import javax.servlet.http.HttpServletRequest
 class ProxyOrchestrator(
     private val client: ProxyClient,
     private val connectionPool: HostPortChannelPool,
-    private val configManager: ProxyConfigurationManager,
     private val requestTransformer: HttpRequestTransformer = HttpRequestTransformer()
 ) {
 
@@ -52,58 +52,37 @@ class ProxyOrchestrator(
      * 执行完整的代理流程
      *
      * @param request 原始HTTP请求
-     * @param requestPath 请求路径
+     * @param matchedConfig 匹配的代理配置
      * @param timeoutMs 超时时间(毫秒)
+     * @param retryCount 重试次数
      * @return 代理执行结果
      * @throws ProxyException 代理执行异常
      */
     suspend fun executeProxyFlow(
         request: HttpServletRequest,
-        requestPath: String,
-        timeoutMs: Long
+        matchedConfig: ProxyConfigurationManager.ProxyConfigMatch,
+        timeoutMs: Long,
+        retryCount: Int
     ): ProxyClient.ProxyResponse {
         try {
             return withTimeout(timeoutMs) {
-                executeInternalProxyFlow(request, requestPath, timeoutMs - 100)
+                // 执行带重试机制的代理流程
+                executeWithRetry(request, matchedConfig, timeoutMs - 100, retryCount)
             }
         } catch (e: Exception) {
             when (e) {
                 is TimeoutCancellationException, is TimeoutException -> {
-                    log.error("Proxy flow timeout for path: {}", requestPath)
+                    log.error("Proxy flow timeout for path: {}", request.requestURI)
                     throw ProxyException("Proxy request timeout: ${e.message}")
                 }
 
                 is ProxyException -> throw e
                 else -> {
-                    log.error("Unexpected error in proxy flow for path: {}", requestPath, e)
+                    log.error("Unexpected error in proxy flow for path: {}", request.requestURI, e)
                     throw ProxyException("Unexpected proxy error: ${e.message}")
                 }
             }
         }
-    }
-
-    /**
-     * 执行内部代理流程（不包含超时处理）
-     */
-    private suspend fun executeInternalProxyFlow(
-        request: HttpServletRequest,
-        requestPath: String,
-        timeoutMs: Long
-    ): ProxyClient.ProxyResponse {
-        // 步骤2：统一入口判断是否代理
-        val matchedConfig = configManager.findProxyConfig(requestPath)
-            ?: throw ProxyException("No proxy configuration found for path: $requestPath")
-
-        // log.info(
-        //     "Proxying request: {} to targets: {}", requestPath,
-        //     matchedConfig.getTargetUris()
-        // )
-
-        // 获取重试次数配置
-        val maxRetries = 3 // 默认重试3次
-
-        // 执行带重试机制的代理流程
-        return executeWithRetry(request, matchedConfig, timeoutMs, maxRetries)
     }
 
     /**
@@ -140,7 +119,8 @@ class ProxyOrchestrator(
 
                 try {
                     // 步骤5：通过原始请求构建新的请求，包括url上的参数和消息体的透传, header的透传等
-                    val proxiedRequest = requestTransformer.transform(request, targetUri, matchedConfig.pathWithinPattern)
+                    val proxiedRequest =
+                        requestTransformer.transform(request, targetUri, matchedConfig.pathWithinPattern)
 
                     // 步骤6：执行构建的请求，使用已获取的连接和URI对象
                     val result = client.executeProxyRequest(proxiedRequest, targetUri.toString(), connection, timeoutMs)
@@ -168,8 +148,9 @@ class ProxyOrchestrator(
                     throw ProxyException("Proxy failed after $maxRetries attempts: ${e.message}", e)
                 }
 
-                // 等待一段时间再重试
-                delay(50 * (attempt + 1).toLong())
+                // 等待一段时间再重试，使用指数退避算法优化性能
+                val backoffDelay = calculateBackoffDelay(attempt)
+                delay(backoffDelay)
             }
         }
 
@@ -186,6 +167,20 @@ class ProxyOrchestrator(
             loadBalancer.clearAllFailures()
         }
 
+    }
+
+    /**
+     * 计算指数退避延迟时间，优化重试性能
+     *
+     * @param attempt 重试次数（从0开始）
+     * @return 延迟时间（毫秒）
+     */
+    private fun calculateBackoffDelay(attempt: Int): Long {
+        // 基础延迟50ms，最大延迟1秒，使用指数退避算法
+        val baseDelay = 50L
+        val maxDelay = 1000L
+        val delay = (baseDelay * 2.0.pow(attempt)).toLong()
+        return minOf(delay, maxDelay)
     }
 
     /**

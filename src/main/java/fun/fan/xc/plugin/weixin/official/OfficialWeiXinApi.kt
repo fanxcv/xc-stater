@@ -148,7 +148,10 @@ class OfficialWeiXinApi(
                 val resp: TemplateResp =
                     JSON.parseObject(bytes, TemplateResp::class.java, JSONReader.Feature.UseBigDecimalForDoubles)
                 if (resp.errcode != null && resp.errcode != 0) {
-                    log.debug("template send result: {}", String(bytes, StandardCharsets.UTF_8))
+                    if (log.isDebugEnabled) {
+                        // 只在DEBUG级别时才转换bytes为String，避免不必要的内存分配
+                        log.debug("template send result: {}", String(bytes, StandardCharsets.UTF_8))
+                    }
                     throw XcServiceException(resp.errcode ?: -999999, "${resp.errcode}: ${resp.errmsg} \nmessage: $message")
                 } else {
                     true

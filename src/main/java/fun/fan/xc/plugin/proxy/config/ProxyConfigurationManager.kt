@@ -172,6 +172,8 @@ class ProxyConfigurationManager(
         val route: ProxyRoute,
         val targets: List<ProxyDestination>,
         val pathWithinPattern: String = "",
-        val hasPattern: Boolean = false
+        val hasPattern: Boolean = false,
+        val timeout: Long = route.timeout ?: 0L,
+        val retryCount: Int = route.retryCount ?: 0
     )
 }

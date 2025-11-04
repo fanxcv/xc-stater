@@ -58,5 +58,7 @@ target/
 /*/test
 /**/go.sum
 .branch
+.serena
+.spec-workflow
 /*/.svn/
 /HELP.md

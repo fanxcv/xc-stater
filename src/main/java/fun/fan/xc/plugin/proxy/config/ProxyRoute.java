@@ -29,4 +29,15 @@ public class ProxyRoute {
      * 默认值：null (需要在配置中明确指定)
      */
     private List<ProxyDestination> target;
+
+    /**
+     * 超时时间, 单位：毫秒
+     */
+    private Long timeout;
+
+    /**
+     * 重试次数，可选配置
+     * 如果未设置，则使用全局重试次数配置
+     */
+    private Integer retryCount;
 }

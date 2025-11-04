@@ -49,7 +49,11 @@ class HostPortChannelPool(private val properties: ProxyProperties) {
     private val log: Logger = LoggerFactory.getLogger(HostPortChannelPool::class.java)
 
     // 共享 EventLoopGroup，避免重复创建
-    private val eventLoopGroup = NioEventLoopGroup()
+    // 优化线程数配置：根据CPU核心数动态设置，提升并发性能
+    private val eventLoopGroup = NioEventLoopGroup(
+        // 推荐值为CPU核心数的2倍
+        min(Runtime.getRuntime().availableProcessors() * 2, properties.maxEventLoopThreads)
+    )
 
     // 按host:port分组的连接池
     private val hostPortPools = ConcurrentHashMap<String, FixedChannelPool>()

@@ -24,10 +24,18 @@ import java.util.List;
 public class ProxyProperties {
 
     /**
-     * 超时时间，单位ms
+     * 默认超时时间，如果未单独指定, 则使用该超时, 单位ms
      * 默认值：30000ms (30秒)
      */
     private long timeout = 30000;
+
+    /**
+     * 默认重试次数，如果未单独指定, 则使用该重试次数
+     * 默认值：3次
+     */
+    @Min(0)
+    @Max(10)
+    private int retryCount = 3;
 
     /**
      * 总连接数
@@ -58,4 +66,9 @@ public class ProxyProperties {
      * 默认值：null (需要在配置文件中明确指定)
      */
     private List<ProxyRoute> route;
+
+    /**
+     * 最大线程数
+     */
+    private int maxEventLoopThreads = 16;
 }

@@ -1,5 +1,6 @@
 package `fun`.fan.xc.plugin.proxy
 
+import `fun`.fan.xc.plugin.proxy.config.ProxyConfigurationManager
 import `fun`.fan.xc.plugin.proxy.config.ProxyProperties
 import `fun`.fan.xc.plugin.proxy.interceptor.ProxyInterceptor
 import `fun`.fan.xc.plugin.proxy.orchestrator.ProxyOrchestrator
@@ -8,6 +9,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication
 import org.springframework.boot.context.properties.EnableConfigurationProperties
+import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.Ordered
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry
@@ -24,6 +26,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 class XcProxyAutoConfiguration(
     private val properties: ProxyProperties,
     private val orchestrator: ProxyOrchestrator,
+    private val configManager: ProxyConfigurationManager,
     private val responseTransformer: HttpResponseTransformer
 ) : WebMvcConfigurer {
 
@@ -33,7 +36,8 @@ class XcProxyAutoConfiguration(
      * 配置拦截器
      */
     override fun addInterceptors(registry: InterceptorRegistry) {
-        val interceptor = registry.addInterceptor(ProxyInterceptor(properties, orchestrator, responseTransformer))
+        val interceptor = registry
+            .addInterceptor(ProxyInterceptor(properties, orchestrator, configManager, responseTransformer))
             .order(Ordered.HIGHEST_PRECEDENCE + 10)
 
         properties.route.forEach { interceptor.addPathPatterns(it.source) }

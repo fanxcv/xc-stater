@@ -1,5 +1,6 @@
 package `fun`.fan.xc.plugin.proxy.interceptor
 
+import `fun`.fan.xc.plugin.proxy.config.ProxyConfigurationManager
 import `fun`.fan.xc.plugin.proxy.config.ProxyProperties
 import `fun`.fan.xc.plugin.proxy.exception.ProxyException
 import `fun`.fan.xc.plugin.proxy.orchestrator.ProxyOrchestrator
@@ -34,6 +35,7 @@ import javax.servlet.http.HttpServletResponse
 class ProxyInterceptor(
     private val properties: ProxyProperties,
     private val orchestrator: ProxyOrchestrator,
+    private val configManager: ProxyConfigurationManager,
     private val responseTransformer: HttpResponseTransformer
 ) : HandlerInterceptor {
 
@@ -57,9 +59,20 @@ class ProxyInterceptor(
     private fun executeProxyFlow(request: HttpServletRequest, response: HttpServletResponse): Boolean {
         val startTime = System.currentTimeMillis()
 
-        // 执行完整的代理流程（步骤3-7）
         val result = runBlocking {
-            orchestrator.executeProxyFlow(request, request.requestURI, properties.timeout)
+            // 步骤2：统一入口判断是否代理
+            val requestPath = request.requestURI
+            val matchedConfig = configManager.findProxyConfig(requestPath)
+                ?: throw ProxyException("No proxy configuration found for path: $requestPath")
+
+            // 使用路由特定超时，如果未设置则使用全局超时
+            val effectiveTimeout = if (matchedConfig.timeout > 0) matchedConfig.timeout else properties.timeout
+
+            // 使用路由特定重试次数，如果未设置则使用全局重试次数
+            val effectiveRetryCount = if (matchedConfig.retryCount > 0) matchedConfig.retryCount else properties.retryCount
+
+            // 执行完整的代理流程（步骤3-7）
+            orchestrator.executeProxyFlow(request, matchedConfig, effectiveTimeout, effectiveRetryCount)
         }
 
         // 使用HttpResponseTransformer处理响应
