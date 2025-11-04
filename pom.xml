@@ -325,6 +325,21 @@
     <!--自定义仓库使用Maven-Go搭建, https://github.com/fanxcv/Maven-Go-->
     <repositories>
         <repository>
+            <id>aliyun-public</id>
+            <name>Aliyun Public Repository</name>
+            <url>https://maven.aliyun.com/repository/public</url>
+        </repository>
+        <repository>
+            <id>spring-releases</id>
+            <name>Spring Releases Repository</name>
+            <url>https://repo.spring.io/release</url>
+        </repository>
+        <repository>
+            <id>central</id>
+            <name>Maven Central Repository</name>
+            <url>https://repo1.maven.org/maven2</url>
+        </repository>
+        <repository>
             <id>fan</id>
             <name>Maven-Go</name>
             <url>https://maven.fan-x.fun/maven/public</url>
@@ -332,6 +347,21 @@
     </repositories>
 
     <pluginRepositories>
+        <pluginRepository>
+            <id>aliyun-public</id>
+            <name>Aliyun Public Repository</name>
+            <url>https://maven.aliyun.com/repository/public</url>
+        </pluginRepository>
+        <pluginRepository>
+            <id>spring-releases</id>
+            <name>Spring Releases Repository</name>
+            <url>https://repo.spring.io/release</url>
+        </pluginRepository>
+        <pluginRepository>
+            <id>central</id>
+            <name>Maven Central Repository</name>
+            <url>https://repo1.maven.org/maven2</url>
+        </pluginRepository>
         <pluginRepository>
             <id>fan</id>
             <name>Maven-Go</name>
