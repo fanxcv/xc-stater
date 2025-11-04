@@ -14,8 +14,8 @@
         <spring.boot.version>2.7.15</spring.boot.version>
         <guava.version>33.0.0-jre</guava.version>
         <fastjson2.version>2.0.39</fastjson2.version>
-        <commons.lang3.version>3.12.0</commons.lang3.version>
-        <hutool.version>5.8.25</hutool.version>
+        <commons.lang3.version>3.18.0</commons.lang3.version>
+        <hutool.version>5.8.40</hutool.version>
 
         <java.version>1.8</java.version>
         <kotlin.version>1.9.23</kotlin.version>
