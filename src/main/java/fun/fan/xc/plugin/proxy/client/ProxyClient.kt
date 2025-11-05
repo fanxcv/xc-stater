@@ -1,6 +1,5 @@
 package `fun`.fan.xc.plugin.proxy.client
 
-import `fun`.fan.xc.plugin.proxy.config.ProxyProperties
 import io.netty.channel.Channel
 import io.netty.channel.ChannelHandler
 import io.netty.channel.ChannelHandlerContext

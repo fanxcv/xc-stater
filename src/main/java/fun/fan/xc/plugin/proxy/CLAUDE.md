@@ -51,6 +51,7 @@
 ### 4. 配置化路由
 - 支持通过配置文件定义路由规则
 - 支持多个目标地址的配置，支持权重分配
+- **支持独立配置HTTP聚合器大小**，可为不同路由和目标配置不同的聚合器大小，优化性能和资源使用
 
 ### 5. 请求/响应转换
 - 支持请求和响应的转换与透传
@@ -73,19 +74,52 @@ xc:
     max-wait-queue-size: 20
     max-wait-timeout: 10000
     route:
-      - source: /api/proxy1/**
+      # 路由级别聚合器大小配置
+      - source: /api/fileupload/**
+        maxAggregatorSize: 104857600  # 100MB，用于大文件上传
         target:
           - uri: http://server1.example.com
             weight: 5
           - uri: http://server2.example.com
             weight: 3
-      - source: /api/proxy2/**
+      # 目标级别聚合器大小配置（优先级更高）
+      - source: /api/normal/**
         target:
           - uri: http://server3.example.com
+            weight: 3
+            maxAggregatorSize: 8388608  # 8MB，优先使用此配置
+          - uri: http://server4.example.com
+            weight: 1
+            # 使用路由级别的聚合器大小配置 (64MB)
+      # 默认配置（32MB）
+      - source: /api/default/**
+        target:
+          - uri: http://server5.example.com
             weight: 1
 ```
 
+### 聚合器大小配置说明
+
+HTTP对象聚合器（HttpObjectAggregator）用于控制HTTP请求/响应消息体的最大聚合大小。
+
+**配置层级和优先级：**
+1. **目标级配置**：`target[].maxAggregatorSize` - 最高优先级
+2. **路由级配置**：`route[].maxAggregatorSize` - 中优先级
+3. **默认值**：33554432 字节 (32MB) - 最低优先级
+
+**使用场景：**
+- **大文件上传/下载**：设置更大的聚合器大小（如 100MB、200MB）
+- **普通API调用**：使用较小的聚合器大小（如 8MB、16MB）以节省资源
+- **微消息体**：可设置更小的聚合器大小（如 1MB）以提高性能
+
+**注意事项：**
+- 聚合器大小设置过小会导致大请求/响应被拒绝
+- 聚合器大小设置过大可能会消耗过多内存
+- 建议根据实际业务场景合理配置
+
 ## 配置参数
+
+### 全局配置
 
 | 参数 | 说明 | 默认值 | 取值范围 |
 | :--- | :--- | :--- | :--- |
@@ -94,6 +128,33 @@ xc:
 | xc.proxy.max-wait-queue-size | 等待队列长度 | 20 | 1-1000 |
 | xc.proxy.max-wait-timeout | 等待时间(毫秒) | 10000 | 1000-60000 |
 | xc.proxy.route | 路由配置列表 | null | - |
+
+### 路由配置
+
+| 参数 | 说明 | 默认值 | 取值范围 |
+| :--- | :--- | :--- | :--- |
+| route[].source | 源接口地址 | - | - |
+| route[].timeout | 路由级超时时间(毫秒) | null | - |
+| route[].retryCount | 路由级重试次数 | null | 0-10 |
+| route[].maxAggregatorSize | 路由级聚合器大小(字节) | null (使用默认值32MB) | 1MB-200MB |
+
+### 目标配置
+
+| 参数 | 说明 | 默认值 | 取值范围 |
+| :--- | :--- | :--- | :--- |
+| target[].uri | 目标URI地址 | - | - |
+| target[].weight | 权重 | 1 | 1-100 |
+| target[].maxAggregatorSize | 目标级聚合器大小(字节) | null (使用路由级配置) | 1MB-200MB |
+
+### 聚合器大小配置说明
+
+**优先级顺序：目标级 > 路由级 > 默认值**
+
+- **默认值**：33554432 字节 (32MB)
+- **建议范围**：
+  - 微消息体：1MB - 8MB
+  - 普通API：8MB - 32MB
+  - 大文件场景：64MB - 200MB
 
 ## 依赖模块
 

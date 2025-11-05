@@ -40,4 +40,12 @@ public class ProxyRoute {
      * 如果未设置，则使用全局重试次数配置
      */
     private Integer retryCount;
+
+    /**
+     * HTTP对象聚合器最大大小，单位：字节
+     * 默认值：2097152 (2MB)
+     * 用于控制HTTP请求/响应消息体的最大聚合大小
+     * 如果未设置，则使用默认值
+     */
+    private Integer maxAggregatorSize;
 }

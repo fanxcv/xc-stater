@@ -57,7 +57,15 @@ class ProxyConfigurationManager(
             if (route.target == null || route.target.isEmpty()) {
                 return
             }
-            routeMap[route.source] = ProxyConfigMatch(route, route.target, hasPattern = containsWildcard(route.source))
+            // 将ProxyDestination转换为Target，包含聚合器大小信息
+            val targets = route.target.map { destination ->
+                ProxyConfigMatch.Target(
+                    uri = destination.uri,
+                    weight = destination.weight,
+                    maxAggregatorSize = destination.maxAggregatorSize
+                )
+            }
+            routeMap[route.source] = ProxyConfigMatch(route, targets, hasPattern = containsWildcard(route.source))
         }
         logRouteSummary()
     }
@@ -170,10 +178,21 @@ class ProxyConfigurationManager(
      */
     data class ProxyConfigMatch(
         val route: ProxyRoute,
-        val targets: List<ProxyDestination>,
+        val targets: List<Target>,
         val pathWithinPattern: String = "",
         val hasPattern: Boolean = false,
         val timeout: Long = route.timeout ?: 0L,
-        val retryCount: Int = route.retryCount ?: 0
-    )
+        val retryCount: Int = route.retryCount ?: 0,
+        val maxAggregatorSize: Int = route.maxAggregatorSize ?: (32 * 1024 * 1024)
+    ) {
+        /**
+         * 目标配置的数据类，包含目标地址和聚合器大小
+         * 这个内部类包装了ProxyDestination，并添加了maxAggregatorSize字段
+         */
+        data class Target(
+            val uri: String,
+            val weight: Int,
+            val maxAggregatorSize: Int?
+        )
+    }
 }

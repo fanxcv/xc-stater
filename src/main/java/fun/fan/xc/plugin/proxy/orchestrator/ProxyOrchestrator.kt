@@ -3,6 +3,7 @@ package `fun`.fan.xc.plugin.proxy.orchestrator
 import `fun`.fan.xc.plugin.proxy.client.HostPortChannelPool
 import `fun`.fan.xc.plugin.proxy.client.ProxyClient
 import `fun`.fan.xc.plugin.proxy.config.ProxyConfigurationManager
+import `fun`.fan.xc.plugin.proxy.config.ProxyRoute
 import `fun`.fan.xc.plugin.proxy.exception.ProxyException
 import `fun`.fan.xc.plugin.proxy.handler.ProxyLoadBalancer
 import `fun`.fan.xc.plugin.proxy.transformer.HttpRequestTransformer
@@ -86,6 +87,26 @@ class ProxyOrchestrator(
     }
 
     /**
+     * 解析聚合器大小配置
+     * 优先级：ProxyDestination.maxAggregatorSize > ProxyRoute.maxAggregatorSize > 默认值 (32MB)
+     *
+     * @param url 目标URL
+     * @param urlToTargetMap URL到目标配置的映射
+     * @param route 路由配置
+     * @return 聚合器大小（字节）
+     */
+    private fun resolveMaxAggregatorSize(
+        url: String,
+        urlToTargetMap: Map<String, ProxyConfigurationManager.ProxyConfigMatch.Target>,
+        route: ProxyRoute
+    ): Int {
+        val target = urlToTargetMap[url]
+        return target?.maxAggregatorSize
+            ?: route.maxAggregatorSize
+            ?: (2 * 1024 * 1024) // 默认2MB
+    }
+
+    /**
      * 带重试机制的代理流程执行
      */
     private suspend fun executeWithRetry(
@@ -96,10 +117,13 @@ class ProxyOrchestrator(
     ): ProxyClient.ProxyResponse {
         var lastException: Exception? = null
 
-        // 构建目标URL列表
+        // 构建目标URL列表和URL到Target的映射
         val weightedUrls = matchedConfig.targets.map { target ->
             ProxyLoadBalancer.WeightedUrl(target.uri, target.weight)
         }
+
+        // 创建URL到Target配置的映射，用于解析聚合器大小
+        val urlToTargetMap = matchedConfig.targets.associateBy { it.uri }
 
         // 获取负载均衡器
         val loadBalancerKey = matchedConfig.route.source
@@ -114,13 +138,15 @@ class ProxyOrchestrator(
                 // 提前转换URI对象，避免重复转换
                 val targetUri = URI(selectedTarget.url)
 
-                // 步骤4：根据目的地址从连接池获取一个连接
-                val connection = connectionPool.acquireConnectionSuspend(targetUri)
+                // 解析聚合器大小配置
+                val maxAggregatorSize = resolveMaxAggregatorSize(selectedTarget.url, urlToTargetMap, matchedConfig.route)
+
+                // 步骤4：根据目的地址和聚合器大小从连接池获取一个连接
+                val connection = connectionPool.acquireConnectionSuspend(targetUri, maxAggregatorSize)
 
                 try {
                     // 步骤5：通过原始请求构建新的请求，包括url上的参数和消息体的透传, header的透传等
-                    val proxiedRequest =
-                        requestTransformer.transform(request, targetUri, matchedConfig.pathWithinPattern)
+                    val proxiedRequest = requestTransformer.transform(request, targetUri, matchedConfig.pathWithinPattern)
 
                     // 步骤6：执行构建的请求，使用已获取的连接和URI对象
                     val result = client.executeProxyRequest(proxiedRequest, targetUri.toString(), connection, timeoutMs)

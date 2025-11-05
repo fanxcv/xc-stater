@@ -27,4 +27,12 @@ public class ProxyDestination {
      * 默认值：1 (最低权重)
      */
     private int weight = 1;
+
+    /**
+     * HTTP对象聚合器最大大小，单位：字节
+     * 默认值：null (如果未设置，则使用路由级别配置或全局默认值 2MB)
+     * 用于控制HTTP请求/响应消息体的最大聚合大小
+     * 优先级：目标级配置 > 路由级配置 > 全局默认值
+     */
+    private Integer maxAggregatorSize;
 }

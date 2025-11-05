@@ -55,7 +55,8 @@ class HostPortChannelPool(private val properties: ProxyProperties) {
         min(Runtime.getRuntime().availableProcessors() * 2, properties.maxEventLoopThreads)
     )
 
-    // 按host:port分组的连接池
+    // 按host:port和聚合器大小分组的连接池
+    // 键格式：host:port:aggregatorSize
     private val hostPortPools = ConcurrentHashMap<String, FixedChannelPool>()
 
     // 缓存host:port键的计算结果
@@ -76,20 +77,29 @@ class HostPortChannelPool(private val properties: ProxyProperties) {
     }
 
     /**
+     * 获取包含聚合器大小的完整键 (host:port:aggregatorSize)
+     */
+    private fun getFullPoolKey(uri: URI, maxAggregatorSize: Int): String {
+        val hostPortKey = getHostPortKey(uri)
+        return "$hostPortKey:$maxAggregatorSize"
+    }
+
+    /**
      * 异步获取连接（协程挂起版本）
      *
      * @param uri 目标URI
+     * @param maxAggregatorSize HTTP对象聚合器最大大小，单位：字节
      * @return 连接Channel
      * @throws java.util.concurrent.TimeoutException 获取超时
      * @throws Exception 其他连接异常
      */
     @OptIn(ExperimentalCoroutinesApi::class)
-    suspend fun acquireConnectionSuspend(uri: URI): Channel {
-        val hostPortKey = getHostPortKey(uri)
+    suspend fun acquireConnectionSuspend(uri: URI, maxAggregatorSize: Int): Channel {
+        val fullPoolKey = getFullPoolKey(uri, maxAggregatorSize)
 
-        // 获取host:port连接池（使用延迟初始化避免启动时创建）
-        val channelPool = hostPortPools.getOrPut(hostPortKey) {
-            createChannelPool(uri)
+        // 获取host:port:aggregatorSize连接池（使用延迟初始化避免启动时创建）
+        val channelPool = hostPortPools.getOrPut(fullPoolKey) {
+            createChannelPool(uri, maxAggregatorSize)
         }
 
         // 获取连接
@@ -99,16 +109,16 @@ class HostPortChannelPool(private val properties: ProxyProperties) {
             future.addListener {
                 if (future.isSuccess) {
                     // 设置channel属性，用于release时识别
-                    future.getNow().attr(AttributeKey.valueOf<String>("hostPortKey")).set(hostPortKey)
+                    future.getNow().attr(AttributeKey.valueOf<String>("hostPortKey")).set(fullPoolKey)
                     continuation.resume(future.getNow()) {
                         // onCancellation 回调
                         if (future.isSuccess && future.isDone) {
-                            log.debug("Connection acquisition cancelled for: {}, releasing connection", hostPortKey)
+                            log.debug("Connection acquisition cancelled for: {}, releasing connection", fullPoolKey)
                             channelPool.release(future.getNow())
                         }
                     }
                 } else {
-                    log.error("Failed to acquire connection for: {}", hostPortKey, future.cause())
+                    log.error("Failed to acquire connection for: {}", fullPoolKey, future.cause())
                     continuation.resumeWithException(
                         future.cause() ?: RuntimeException("Unknown connection acquisition error")
                     )
@@ -142,12 +152,12 @@ class HostPortChannelPool(private val properties: ProxyProperties) {
     /**
      * 创建连接池
      */
-    private fun createChannelPool(uri: URI): FixedChannelPool {
-        val hostPortKey = getHostPortKey(uri)
-        log.info("Creating new channel pool for: {}", hostPortKey)
+    private fun createChannelPool(uri: URI, maxAggregatorSize: Int): FixedChannelPool {
+        val fullPoolKey = getFullPoolKey(uri, maxAggregatorSize)
+        log.info("Creating new channel pool for: {}", fullPoolKey)
 
         val bootstrap = createBootstrap(uri)
-        val poolHandler = ConnectionPoolHandler()
+        val poolHandler = ConnectionPoolHandler(maxAggregatorSize)
 
         return FixedChannelPool(
             bootstrap,
@@ -159,11 +169,12 @@ class HostPortChannelPool(private val properties: ProxyProperties) {
             properties.maxWaitQueueSize
         ).apply {
             log.info(
-                "Channel pool created for: {} with max connections: {}, max wait queue: {}, max wait time: {}",
-                hostPortKey,
+                "Channel pool created for: {} with max connections: {}, max wait queue: {}, max wait time: {}, aggregator size: {}",
+                fullPoolKey,
                 properties.maxConnections,
                 properties.maxWaitQueueSize,
-                properties.maxWaitTimeout
+                properties.maxWaitTimeout,
+                maxAggregatorSize
             )
         }
     }
@@ -207,7 +218,7 @@ class HostPortChannelPool(private val properties: ProxyProperties) {
      * 连接池处理器
      * 负责Channel的初始化和清理
      */
-    private class ConnectionPoolHandler : ChannelPoolHandler {
+    private class ConnectionPoolHandler(private val maxAggregatorSize: Int) : ChannelPoolHandler {
         private val log = LoggerFactory.getLogger(ConnectionPoolHandler::class.java)
 
         override fun channelCreated(channel: Channel) {
@@ -218,7 +229,7 @@ class HostPortChannelPool(private val properties: ProxyProperties) {
 
             // 添加HTTP编解码器和聚合器
             pipeline.addFirst("codec", HttpClientCodec())
-            pipeline.addAfter("codec", "aggregator", HttpObjectAggregator(65536))
+            pipeline.addAfter("codec", "aggregator", HttpObjectAggregator(maxAggregatorSize))
 
             // 添加连接池特定的处理器
             pipeline.addLast("poolHandler", object : ChannelInboundHandlerAdapter() {
