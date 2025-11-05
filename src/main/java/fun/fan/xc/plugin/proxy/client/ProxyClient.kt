@@ -1,5 +1,7 @@
 package `fun`.fan.xc.plugin.proxy.client
 
+import `fun`.fan.xc.plugin.proxy.handler.BufferPool
+import io.netty.buffer.ByteBuf
 import io.netty.channel.Channel
 import io.netty.channel.ChannelHandler
 import io.netty.channel.ChannelHandlerContext
@@ -11,7 +13,6 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.io.ByteArrayOutputStream
 import java.util.concurrent.TimeoutException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -121,7 +122,7 @@ class ProxyClient() {
     private class ProxyResponseHandler() : SimpleChannelInboundHandler<HttpObject>() {
         private val log: Logger = LoggerFactory.getLogger(ProxyResponseHandler::class.java)
         private var httpResponse: HttpResponse? = null
-        private val contentBuffer = ByteArrayOutputStream()
+        private val contentBuffer = BufferPool.acquire()
 
         override fun channelRead0(ctx: ChannelHandlerContext, msg: HttpObject) {
             val state = ctx.channel().attr(RESPONSE_STATE_KEY).get()
@@ -145,11 +146,10 @@ class ProxyClient() {
                     }
 
                     is HttpContent -> {
-                        // HTTP响应体（非聚合模式）
+                        // HTTP响应体（非聚合模式）- 零拷贝优化
                         if (msg.content().isReadable) {
-                            val bytes = ByteArray(msg.content().readableBytes())
-                            msg.content().readBytes(bytes)
-                            contentBuffer.write(bytes)
+                            // 使用BufferPool.transferToZeroCopy直接传输，避免ByteArray分配
+                            BufferPool.transferToZeroCopy(msg.content(), contentBuffer)
                         }
                         if (msg is LastHttpContent) {
                             completeResponseFromParts(state, httpResponse, contentBuffer)
@@ -201,40 +201,49 @@ class ProxyClient() {
         }
 
         /**
-         * 提取Body
+         * 提取Body - 零拷贝优化
+         * 直接返回ByteBuf引用，避免ByteArray分配
          */
-        private fun extractBody(response: FullHttpResponse): ByteArray {
+        private fun extractBody(response: FullHttpResponse): ByteBuf {
             return if (response.content().isReadable) {
-                val bytes = ByteArray(response.content().readableBytes())
-                response.content().readBytes(bytes)
-                bytes
+                // 直接返回内容ByteBuf的引用，不进行拷贝
+                // 读取完成后ByteBuf会被自动释放
+                response.content().retainedSlice()
             } else {
-                ByteArray(0)
+                // 返回空缓冲区
+                BufferPool.acquire(0)
             }
         }
 
         /**
-         * 完成完整响应的处理
+         * 完成完整响应的处理 - 零拷贝优化
          */
         private fun completeResponse(
             state: ResponseState,
             statusCode: Int,
             headers: Map<String, String>,
-            bodyBytes: ByteArray
+            bodyBytes: ByteBuf
         ) {
-            val proxyResponse = ProxyResponse(statusCode, headers, bodyBytes, state.targetUrl)
+            // 将ByteBuf转换为ByteArray（只有在这里进行一次拷贝）
+            val bodyArray = ByteArray(bodyBytes.readableBytes())
+            bodyBytes.getBytes(0, bodyArray)
+
+            val proxyResponse = ProxyResponse(statusCode, headers, bodyArray, state.targetUrl)
             if (state.continuation.isActive) {
                 state.continuation.resume(proxyResponse)
             }
+
+            // 释放ByteBuf资源
+            bodyBytes.release()
         }
 
         /**
-         * 完成分片响应的处理
+         * 完成分片响应的处理 - 零拷贝优化
          */
         private fun completeResponseFromParts(
             state: ResponseState,
             httpResponse: HttpResponse?,
-            contentBuffer: ByteArrayOutputStream
+            contentBuffer: ByteBuf
         ) {
             if (!state.continuation.isActive) {
                 return
@@ -247,10 +256,22 @@ class ProxyClient() {
                 headers[entry.key] = entry.value
             }
 
-            val bodyBytes = contentBuffer.toByteArray()
-            contentBuffer.reset()
+            // 直接使用contentBuffer（零拷贝），不再转换为ByteArrayOutputStream
+            completeResponse(state, statusCode, headers, contentBuffer)
 
-            completeResponse(state, statusCode, headers, bodyBytes)
+            // 重置contentBuffer以供下次使用（保留在池中复用）
+            contentBuffer.clear()
+        }
+
+        /**
+         * 处理通道关闭时的资源清理
+         */
+        override fun channelInactive(ctx: ChannelHandlerContext) {
+            // 清理contentBuffer，归还到对象池
+            if (contentBuffer.refCnt() > 0) {
+                BufferPool.release(contentBuffer)
+            }
+            super.channelInactive(ctx)
         }
     }
 

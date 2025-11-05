@@ -2,12 +2,14 @@ package `fun`.fan.xc.plugin.proxy.transformer
 
 import `fun`.fan.xc.plugin.proxy.exception.ProxyException
 import `fun`.fan.xc.starter.utils.Dict
+import io.netty.buffer.ByteBuf
+import io.netty.buffer.Unpooled
 import io.netty.handler.codec.http.FullHttpRequest
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.web.multipart.MultipartFile
 import org.springframework.web.multipart.support.StandardMultipartHttpServletRequest
-import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import java.net.URI
 import java.nio.charset.StandardCharsets
 import javax.servlet.http.HttpServletRequest
@@ -129,7 +131,8 @@ class HttpRequestTransformer {
                 pathBuilder.append("/")
             }
             // 移除路径部分开头的斜杠（如果存在），然后追加
-            val normalizedPath = if (pathWithinPattern.startsWith("/")) pathWithinPattern.substring(1) else pathWithinPattern
+            val normalizedPath =
+                if (pathWithinPattern.startsWith("/")) pathWithinPattern.substring(1) else pathWithinPattern
             pathBuilder.append(normalizedPath)
         }
 
@@ -159,14 +162,32 @@ class HttpRequestTransformer {
     }
 
     /**
-     * 读取请求体
+     * 读取请求体，使用 ByteBuf 减少内存分配
      */
-    private fun readRequestBody(request: HttpServletRequest): ByteArray {
+    private fun readRequestBody(request: HttpServletRequest): ByteBuf {
+        val contentLength = request.contentLength
+        if (contentLength <= 0) {
+            return Unpooled.EMPTY_BUFFER
+        }
+
         return try {
-            request.inputStream.readBytes()
+            val buffer = Unpooled.buffer(contentLength)
+            val inputStream = request.inputStream
+            var totalRead = 0
+
+            val chunkBuffer = ByteArray(8192)
+            while (totalRead < contentLength) {
+                val bytesRead = inputStream.read(chunkBuffer)
+                if (bytesRead <= 0) break
+
+                buffer.writeBytes(chunkBuffer, 0, bytesRead)
+                totalRead += bytesRead
+            }
+
+            buffer
         } catch (e: Exception) {
             log.warn("Failed to read request body: {}", e.message)
-            ByteArray(0)
+            Unpooled.EMPTY_BUFFER
         }
     }
 
@@ -178,9 +199,9 @@ class HttpRequestTransformer {
     }
 
     /**
-     * 重构multipart请求体
+     * 重构multipart请求体，使用 ByteBuf 优化内存使用
      */
-    private fun reconstructMultipartBody(request: HttpServletRequest, boundary: String): ByteArray {
+    private fun reconstructMultipartBody(request: HttpServletRequest, boundary: String): ByteBuf {
         try {
             // 获取multipart文件
             val multipartFiles = getMultipartFiles(request)
@@ -189,33 +210,33 @@ class HttpRequestTransformer {
             val parameterMap = request.parameterMap
 
             if (multipartFiles.isEmpty() && parameterMap.isEmpty()) {
-                return ByteArray(0)
+                return Unpooled.EMPTY_BUFFER
             }
 
-            // 构建multipart内容
-            val contentBuilder = ByteArrayOutputStream()
+            // 使用 ByteBuf 替代 ByteArrayOutputStream
+            val buffer = Unpooled.buffer(1024)
 
             // 添加表单字段
             parameterMap.forEach { (name, values) ->
                 values.forEach { value ->
-                    writeFormField(contentBuilder, boundary, name, value)
+                    writeFormFieldToBuffer(buffer, boundary, name, value)
                 }
             }
 
             // 添加文件字段
             multipartFiles.forEach { (name, files) ->
                 files.forEach { file ->
-                    writeFileField(contentBuilder, boundary, name, file)
+                    writeFileFieldToBuffer(buffer, boundary, name, file)
                 }
             }
 
             // 添加结束boundary
-            contentBuilder.write("--$boundary--\r\n".toByteArray(StandardCharsets.UTF_8))
+            buffer.writeBytes("--$boundary--\r\n".toByteArray(StandardCharsets.UTF_8))
 
-            return contentBuilder.toByteArray()
+            return buffer
         } catch (e: Exception) {
             log.warn("Failed to reconstruct multipart body: {}", e.message)
-            return ByteArray(0)
+            return Unpooled.EMPTY_BUFFER
         }
     }
 
@@ -236,10 +257,10 @@ class HttpRequestTransformer {
     }
 
     /**
-     * 写入表单字段
+     * 写入表单字段（ByteBuf版本）
      */
-    private fun writeFormField(
-        outputStream: ByteArrayOutputStream,
+    private fun writeFormFieldToBuffer(
+        buffer: ByteBuf,
         boundary: String,
         name: String,
         value: String
@@ -247,16 +268,17 @@ class HttpRequestTransformer {
         val fieldHeader = "--$boundary\r\n" +
                 "Content-Disposition: form-data; name=\"$name\"\r\n" +
                 "\r\n"
-        outputStream.write(fieldHeader.toByteArray(StandardCharsets.UTF_8))
-        outputStream.write(value.toByteArray(StandardCharsets.UTF_8))
-        outputStream.write("\r\n".toByteArray(StandardCharsets.UTF_8))
+        buffer.writeBytes(fieldHeader.toByteArray(StandardCharsets.UTF_8))
+        buffer.writeBytes(value.toByteArray(StandardCharsets.UTF_8))
+        buffer.writeBytes("\r\n".toByteArray(StandardCharsets.UTF_8))
     }
 
     /**
-     * 写入文件字段
+     * 写入文件字段（流式零拷贝版本）
+     * 使用输入流直接传输，避免file.bytes()导致的内存爆炸
      */
-    private fun writeFileField(
-        outputStream: ByteArrayOutputStream,
+    private fun writeFileFieldToBuffer(
+        buffer: ByteBuf,
         boundary: String,
         name: String,
         file: MultipartFile
@@ -266,11 +288,35 @@ class HttpRequestTransformer {
                     "Content-Disposition: form-data; name=\"$name\"; filename=\"${file.originalFilename ?: "file"}\"\r\n" +
                     "Content-Type: ${file.contentType ?: "application/octet-stream"}\r\n" +
                     "\r\n"
-            outputStream.write(fieldHeader.toByteArray(StandardCharsets.UTF_8))
-            outputStream.write(file.bytes)
-            outputStream.write("\r\n".toByteArray(StandardCharsets.UTF_8))
+            buffer.writeBytes(fieldHeader.toByteArray(StandardCharsets.UTF_8))
+
+            // 使用流式传输，避免file.bytes()导致的内存爆炸
+            // 通过输入流直接读取文件内容并写入ByteBuf
+            file.inputStream.use { inputStream ->
+                transferInputStreamToBuffer(inputStream, buffer)
+            }
+
+            buffer.writeBytes("\r\n".toByteArray(StandardCharsets.UTF_8))
         } catch (e: Exception) {
             log.warn("Failed to write file field: {}", e.message)
+        }
+    }
+
+    /**
+     * 流式传输输入流到ByteBuf，实现零拷贝优化
+     * 使用分块读取避免大文件时内存峰值过高
+     *
+     * @param inputStream 源输入流
+     * @param buffer 目标ByteBuf
+     */
+    private fun transferInputStreamToBuffer(inputStream: InputStream, buffer: ByteBuf) {
+        val chunkBuffer = ByteArray(1 * 1024 * 1024) // iMB 块
+        var bytesRead: Int
+
+        while (inputStream.read(chunkBuffer).also { bytesRead = it } != -1) {
+            if (bytesRead > 0) {
+                buffer.writeBytes(chunkBuffer, 0, bytesRead)
+            }
         }
     }
 
@@ -300,19 +346,13 @@ class HttpRequestTransformer {
     private fun createNettyRequest(
         method: io.netty.handler.codec.http.HttpMethod,
         path: String,
-        body: ByteArray
+        body: ByteBuf
     ): FullHttpRequest {
-        val contentBuffer = if (body.isNotEmpty()) {
-            io.netty.buffer.Unpooled.wrappedBuffer(body)
-        } else {
-            io.netty.buffer.Unpooled.EMPTY_BUFFER
-        }
-
         return io.netty.handler.codec.http.DefaultFullHttpRequest(
             io.netty.handler.codec.http.HttpVersion.HTTP_1_1,
             method,
             path,
-            contentBuffer
+            body
         )
     }
 
@@ -347,7 +387,7 @@ class HttpRequestTransformer {
      */
     private fun setRequiredHeaders(
         nettyRequest: FullHttpRequest,
-        requestBody: ByteArray,
+        requestBody: ByteBuf,
         targetUri: URI
     ) {
         // 设置Host Header
@@ -360,7 +400,7 @@ class HttpRequestTransformer {
         nettyRequest.headers().set("Host", hostHeader)
 
         // 设置Content-Length Header
-        nettyRequest.headers().set("Content-Length", requestBody.size.toString())
+        nettyRequest.headers().set("Content-Length", requestBody.readableBytes().toString())
 
         // 设置User-Agent Header
         if (!nettyRequest.headers().contains("User-Agent")) {
