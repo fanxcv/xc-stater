@@ -3,6 +3,9 @@ package fun.fan.xc.plugin.proxy;
 import fun.fan.xc.plugin.proxy.client.HostPortChannelPool;
 import fun.fan.xc.plugin.proxy.client.ProxyClient;
 import fun.fan.xc.plugin.proxy.config.ProxyConfigurationManager;
+import fun.fan.xc.plugin.proxy.mock.ProxyMockDataLoader;
+import fun.fan.xc.plugin.proxy.mock.ProxyMockMatcher;
+import fun.fan.xc.plugin.proxy.mock.ProxyMockResponseHandler;
 import fun.fan.xc.plugin.proxy.orchestrator.ProxyOrchestrator;
 import fun.fan.xc.plugin.proxy.transformer.HttpResponseTransformer;
 import org.springframework.context.annotation.Import;
@@ -24,6 +27,9 @@ import java.lang.annotation.*;
         HttpResponseTransformer.class,
         XcProxyAutoConfiguration.class,
         ProxyConfigurationManager.class,
+        ProxyMockResponseHandler.class,
+        ProxyMockDataLoader.class,
+        ProxyMockMatcher.class
 })
 public @interface EnableXcProxy {
 }

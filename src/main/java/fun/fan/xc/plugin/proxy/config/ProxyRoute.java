@@ -48,4 +48,9 @@ public class ProxyRoute {
      * 如果未设置，则使用默认值
      */
     private Integer maxAggregatorSize;
+
+    /**
+     * mock数据设置, 可选配置, 配置后通过mock配置返回数据, 不发生实际请求
+     */
+    private ProxyMock mock;
 }

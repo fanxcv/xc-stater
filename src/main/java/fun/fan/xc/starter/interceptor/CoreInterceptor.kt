@@ -45,16 +45,17 @@ class CoreInterceptor(applicationContext: ApplicationContext) : HandlerIntercept
     // }
 
     override fun preHandle(request: HttpServletRequest, response: HttpServletResponse, handler: Any): Boolean {
+        val event = EventImpl.instance()
+        // 解析参数
+        getRequestParam(request, event)
+
         if (handler is HandlerMethod) {
-            val event = EventImpl.instance()
-            // 解析参数
-            getRequestParam(request, event)
             // 网关拦截器
             gatewayHandler?.forEach { if (!it.check(handler, request)) throw XcServiceException(ReturnCode.FORBIDDEN) }
-
             // 标记该请求有使用XcCore处理
             request.setAttribute(Dict.REQUEST_DEAL_BY_XC_CORE, true)
         }
+
         return true
     }
 
